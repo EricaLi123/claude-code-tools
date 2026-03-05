@@ -1,0 +1,31 @@
+{
+  "name": "claude-code-notify",
+  "version": "1.0.0",
+  "description": "Windows Toast notifications for Claude Code — get notified when tasks finish or need permission",
+  "bin": {
+    "claude-code-notify": "bin/cli.js"
+  },
+  "files": [
+    "bin/",
+    "scripts/",
+    "setup.js"
+  ],
+  "keywords": [
+    "claude",
+    "claude-code",
+    "notification",
+    "toast",
+    "windows",
+    "hooks"
+  ],
+  "author": "EricaLi",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/EricaLi123/claude-code-tools.git",
+    "directory": "packages/claude-code-notify"
+  },
+  "engines": {
+    "node": ">=16"
+  }
+}
