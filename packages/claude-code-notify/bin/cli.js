@@ -15,7 +15,11 @@ const ps = spawn(
   { stdio: ["pipe", "inherit", "inherit"] }
 );
 
-process.stdin.pipe(ps.stdin);
+if (process.stdin.isTTY) {
+  ps.stdin.end();
+} else {
+  process.stdin.pipe(ps.stdin);
+}
 
 ps.on("close", (code) => {
   process.exit(code || 0);
