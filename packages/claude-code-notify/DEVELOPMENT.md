@@ -54,3 +54,64 @@ VSCODE_GIT_IPC_HANDLE=\\.\pipe\vscode-git-ec9a16cdec-sock
 ```
 
 实现位置：`scripts/find-hwnd.ps1` 主链断后的 fallback 块。
+
+### Toast "Open" 按钮 — 终端窗口闪烁
+
+**现象：** 点击 Toast 的 "Open" 按钮时，会短暂闪现一个终端窗口。
+
+**根本原因：** 使用 `powershell.exe -EncodedCommand` 或 `-WindowStyle Hidden` 启动时，
+PowerShell 在窗口样式生效前仍会短暂显示窗口，即使指定隐藏参数也无法完全避免。
+
+**尝试的方案：**
+
+- ❌ `-EncodedCommand` 内联脚本 — 仍有闪烁
+- ❌ `-File` 参数调用脚本 — 仍有闪烁
+
+**最终方案：** VBScript wrapper
+
+使用 `wscript.exe`（GUI 版本脚本宿主）调用 VBScript，再由 VBScript 调用 PowerShell。
+VBScript 的 `shell.Run command, 0, False` 中 `0` 参数可完全隐藏窗口，且 wscript 本身不显示控制台。
+
+```
+协议注册命令：wscript.exe activate-window.vbs "%1"
+  → VBScript: shell.Run "powershell.exe ... -File activate-window.ps1", 0, False
+      → activate-window.ps1 实际执行窗口激活
+```
+
+实现位置：`scripts/activate-window.vbs`、`scripts/register-protocol.ps1`
+
+### Toast 激活机制与 Windows 打包限制
+
+**背景：** Windows Toast 支持三种激活类型：
+
+| 类型 | 要求 | 行为 |
+|------|------|------|
+| `protocol` | 只需注册表 | 启动关联的 protocol handler |
+| `foreground` | 需要 MSIX 打包 + COM Activator | 前台激活应用主窗口 |
+| `background` | 需要 MSIX 打包 + COM Activator | 后台处理 |
+
+**限制来源：** [Microsoft 文档](https://learn.microsoft.com/en-us/windows/apps/develop/notifications/app-notifications/toast-desktop-apps)：
+
+> 未打包的桌面应用只能使用 protocol activation，因为 stub CLSID 会破坏其他类型的激活。
+
+**当前项目的选择：**
+
+作为 npm 包，要求用户安装 MSIX 不现实，因此使用 protocol activation：
+
+```xml
+<action activationType="protocol"
+        arguments="erica-s.claude-code-notify.activate-window://<hwnd>"
+        content="Open"/>
+```
+
+**已知问题：**
+
+1. **焦点行为不可靠** — protocol handler 启动的进程可能在后台运行，不会自动获得焦点
+2. **Windows 10 vs 11** — 两者打包要求相同，但实际行为可能因版本而异（Win11 表现通常更好）
+3. **`SetForegroundWindow` 限制** — Windows 防止焦点窃取，可能导致窗口激活失败
+
+**缓解措施：**
+
+- VBScript wrapper 避免窗口闪烁
+- `SetForegroundWindow` + `ShowWindow(hwnd, 9)` (SW_RESTORE) 组合尝试激活
+- 如需更可靠的前台激活，需要 MSIX 打包 + COM Activator（但部署成本高）
