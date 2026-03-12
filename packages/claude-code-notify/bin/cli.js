@@ -17,7 +17,7 @@ const envVars = {
 };
 
 // 初始化
-let sessionId, eventName, isDev, log;
+let sessionId, eventName, customTitle, isDev, log;
 
 try {
   // Read stdin
@@ -31,6 +31,7 @@ try {
 
   sessionId = (hookJson && hookJson.session_id) ? hookJson.session_id : "unknown";
   eventName = (hookJson && hookJson.hook_event_name) || "";
+  customTitle = (hookJson && hookJson.title) || "";
   isDev = !fs.existsSync(path.join(__dirname, "..", ".published"));
 
   const LOG_DIR = path.join(os.tmpdir(), "claude-code-notify");
@@ -73,6 +74,7 @@ try {
     CLAUDE_NOTIFY_EVENT: eventName,
     CLAUDE_NOTIFY_IS_DEV: isDev ? "1" : "0",
     CLAUDE_NOTIFY_PROJECT_DIR: process.env.CLAUDE_PROJECT_DIR || "",
+    ...(customTitle ? { CLAUDE_NOTIFY_TITLE: customTitle } : {}),
     ...(hwnd ? { CLAUDE_NOTIFY_HWND: String(hwnd) } : {}),
   });
 } catch (err) {

@@ -9,15 +9,21 @@
 #      共 6 个 case
 #   3. 每个 case 间隔 2 秒，方便肉眼逐条核对
 
-$notifyScript = Join-Path (Split-Path -Parent $PSScriptRoot) "scripts\notify.ps1"
-$logFile      = Join-Path $env:TEMP "claude-notify-test.log"
-$projectDir   = 'C:\Users\test\my-awesome-project'
+$scriptRoot    = Split-Path -Parent $PSScriptRoot
+$notifyScript  = Join-Path $scriptRoot "scripts\notify.ps1"
+$findHwndScript = Join-Path $scriptRoot "scripts\find-hwnd.ps1"
+$logFile       = Join-Path $env:TEMP "claude-notify-test.log"
+$projectDir    = 'C:\Users\test\my-awesome-project'
 
-# 查找当前桌面上第一个有窗口的进程作为 "有 HWND" 的测试目标
-$hwnd = (Get-Process | Where-Object { $_.MainWindowHandle -ne 0 } | Select-Object -First 1).MainWindowHandle
-Write-Host "Using HWND: $hwnd" -ForegroundColor DarkGray
+# 使用当前终端窗口（从当前 PID 向上找父链中第一个有窗口的进程）
+$findResult = & powershell.exe -NoProfile -EP Bypass -File $findHwndScript -StartPid $PID 2>$null
+$hwnd = [int]($findResult | Select-Object -Last 1)
+if ($hwnd -eq 0) {
+    Write-Host "Warning: current window HWND not found, with-hwnd cases will behave like no-hwnd" -ForegroundColor Yellow
+}
+Write-Host "Using HWND: $hwnd (current window)" -ForegroundColor DarkGray
 
-function Send-Toast([string]$eventName, [string]$testHwnd = '') {
+function Send-Toast([string]$eventName, [string]$testHwnd = '', [string]$title = '') {
     $psi = [System.Diagnostics.ProcessStartInfo]::new()
     $psi.FileName             = 'powershell.exe'
     $psi.Arguments            = "-NoProfile -EP Bypass -File `"$notifyScript`""
@@ -30,6 +36,7 @@ function Send-Toast([string]$eventName, [string]$testHwnd = '') {
     $psi.EnvironmentVariables['CLAUDE_NOTIFY_LOG_FILE'] = $logFile     # 日志文件路径
     $psi.EnvironmentVariables['CLAUDE_PROJECT_DIR']     = $projectDir  # 项目目录，显示在消息体
     $psi.EnvironmentVariables['CLAUDE_NOTIFY_HWND']     = $testHwnd    # 窗口句柄，空字符串=无窗口
+    $psi.EnvironmentVariables['CLAUDE_NOTIFY_TITLE']    = $title       # 测试 case 名称作为标题
 
     $proc = [System.Diagnostics.Process]::Start($psi)
     $stderr = $proc.StandardError.ReadToEnd()
@@ -45,18 +52,18 @@ Write-Host '  total cases : 6'
 Write-Host ''
 
 $cases = @(
-    @{ Event = 'Stop';              Hwnd = '';      Label = 'Stop            | no hwnd' }
-    @{ Event = 'Stop';              Hwnd = "$hwnd"; Label = 'Stop            | with hwnd' }
-    @{ Event = 'PermissionRequest'; Hwnd = '';      Label = 'PermissionRequest | no hwnd' }
-    @{ Event = 'PermissionRequest'; Hwnd = "$hwnd"; Label = 'PermissionRequest | with hwnd' }
-    @{ Event = 'Notification';      Hwnd = '';      Label = 'default(info)   | no hwnd' }
-    @{ Event = 'Notification';      Hwnd = "$hwnd"; Label = 'default(info)   | with hwnd' }
+    @{ Event = 'Stop';              Hwnd = '';        Label = 'Stop | no hwnd' }
+    @{ Event = 'Stop';              Hwnd = "$hwnd";   Label = 'Stop | with hwnd' }
+    @{ Event = 'PermissionRequest'; Hwnd = '';        Label = 'PermissionRequest | no hwnd' }
+    @{ Event = 'PermissionRequest'; Hwnd = "$hwnd";   Label = 'PermissionRequest | with hwnd' }
+    @{ Event = 'Notification';      Hwnd = '';        Label = 'Notification | no hwnd' }
+    @{ Event = 'Notification';      Hwnd = "$hwnd";   Label = 'Notification | with hwnd' }
 )
 
 $i = 1
 foreach ($c in $cases) {
     Write-Host "[$i/6] $($c.Label)" -ForegroundColor Yellow
-    Send-Toast $c.Event $c.Hwnd
+    Send-Toast $c.Event $c.Hwnd $c.Label
     Write-Host ''
     if ($i -lt $cases.Count) { Start-Sleep -Seconds 2 }
     $i++
@@ -69,5 +76,6 @@ Write-Host '  - permissionRequest: 橙色 Q 图标'
 Write-Host '  - default/info   : 蓝色 i 图标'
 Write-Host '  - with hwnd      : 图标叠加终端 exe 图标，任务栏闪烁'
 Write-Host '  - no hwnd        : 纯静态符号图标，无闪烁'
+Write-Host '  - title          : 每条通知标题 = 测试 case 名称（如 "Stop | with hwnd"）'
 Write-Host '  - 消息体均含项目名: my-awesome-project'
 Write-Host ''

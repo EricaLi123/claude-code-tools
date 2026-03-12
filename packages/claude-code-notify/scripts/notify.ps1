@@ -24,6 +24,8 @@ switch ($eventName) {
     'PermissionRequest' { $Title = 'Claude Needs Permission'; $Message = 'Waiting for your approval' }
     default             { $Title = 'Claude';                  $Message = 'Notification' }
 }
+# 支持自定义标题：CLAUDE_NOTIFY_TITLE 优先于事件名推导的标题
+if ($env:CLAUDE_NOTIFY_TITLE) { $Title = $env:CLAUDE_NOTIFY_TITLE }
 $projectDir = $env:CLAUDE_PROJECT_DIR
 if ($projectDir) {
     $projectName = Split-Path $projectDir -Leaf
@@ -58,7 +60,7 @@ function Get-NotifyIcon($hookName, $exePath) {
     if (-not ($exePath -and (Test-Path $exePath))) { return $staticIcon }
 
     $exeSlug  = [System.IO.Path]::GetFileNameWithoutExtension($exePath).ToLower()
-    $cacheDir = [System.IO.Path]::Combine($PSScriptRoot, "..", ".cache")
+    $cacheDir = [System.IO.Path]::GetFullPath([System.IO.Path]::Combine($PSScriptRoot, "..", ".cache"))
     $iconPath = [System.IO.Path]::Combine($cacheDir, "$hookName-$exeSlug.png")
     if (-not (Test-Path $cacheDir)) { New-Item -ItemType Directory -Path $cacheDir | Out-Null }
     if (Test-Path $iconPath) { return $iconPath }
