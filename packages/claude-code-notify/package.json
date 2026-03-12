@@ -1,6 +1,6 @@
 {
   "name": "@erica_s/claude-code-notify",
-  "version": "2.1.2",
+  "version": "2.1.3",
   "description": "Windows Toast notifications for Claude Code — get notified when tasks finish or need permission",
   "bin": {
     "claude-code-notify": "bin/cli.js"
