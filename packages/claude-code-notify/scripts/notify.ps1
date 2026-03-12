@@ -58,7 +58,7 @@ function Get-NotifyIcon($hookName, $exePath) {
     if (-not ($exePath -and (Test-Path $exePath))) { return $staticIcon }
 
     $exeSlug  = [System.IO.Path]::GetFileNameWithoutExtension($exePath).ToLower()
-    $cacheDir = [System.IO.Path]::Combine($PSScriptRoot, "icons-cache")
+    $cacheDir = [System.IO.Path]::Combine($PSScriptRoot, "..", ".cache")
     $iconPath = [System.IO.Path]::Combine($cacheDir, "$hookName-$exeSlug.png")
     if (-not (Test-Path $cacheDir)) { New-Item -ItemType Directory -Path $cacheDir | Out-Null }
     if (Test-Path $iconPath) { return $iconPath }
