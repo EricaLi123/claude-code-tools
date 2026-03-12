@@ -17,7 +17,7 @@ Write-Log "started"
 # isDev 由 cli.js 通过环境变量传入
 $isDev = $env:CLAUDE_NOTIFY_IS_DEV -ne "0"
 
-# 1. Determine title/message from env vars set by cli.js
+# 1. 从 cli.js 传入的环境变量确定通知标题和内容
 $eventName = if ($env:CLAUDE_NOTIFY_EVENT) { $env:CLAUDE_NOTIFY_EVENT } else { '' }
 switch ($eventName) {
     'Stop'              { $Title = 'Claude Done';             $Message = 'Task finished' }
@@ -31,9 +31,10 @@ if ($projectDir) {
 }
 Write-Log "event=$eventName title=$Title"
 
-# 2. Window detection
-$hwnd = $null
-$terminalName = 'Terminal'
+# 2. 窗口检测
+$hwnd            = $null
+$terminalName    = 'Terminal'
+$terminalExePath = $null
 
 # 3a. 优先使用 cli.js 预先找好的 hwnd（通过 find-hwnd.ps1 在 Node 侧查父链得到）。
 # 这样可以绕过 MSYS2 断链问题：git bash 里 PowerShell 自身的父链走不到编辑器窗口，
@@ -42,22 +43,66 @@ if ($env:CLAUDE_NOTIFY_HWND) {
     $hwnd = [IntPtr][long]$env:CLAUDE_NOTIFY_HWND
     try {
         $proc = Get-Process -Id (Get-Process | Where-Object { $_.MainWindowHandle -eq $hwnd } | Select-Object -First 1 -ExpandProperty Id) -ErrorAction Stop
-        $terminalName = if ($proc.Product) { $proc.Product } elseif ($proc.Description) { $proc.Description } else { $proc.ProcessName }
+        $terminalName    = if ($proc.Product) { $proc.Product } elseif ($proc.Description) { $proc.Description } else { $proc.ProcessName }
+        $terminalExePath = $proc.Path
     } catch {}
-    Write-Log "hwnd from cli.js: $hwnd terminal=$terminalName"
+    Write-Log "hwnd from cli.js: $hwnd terminal=$terminalName exe=$terminalExePath"
 }
 
 Write-Log "hwnd=$hwnd terminal=$terminalName"
 
-# 按事件类型选取图标（随包一起分发，存放在 assets/icons/）
-$iconName = switch ($eventName) {
+# 合成通知图标：底层 exe 图标 + 上层静态符号 PNG
+# 缓存到 scripts/icons-cache/{hookName}-{exeSlug}.png，npm install 重建包目录时随之清空
+function Get-NotifyIcon($hookName, $exePath) {
+    $staticIcon = [System.IO.Path]::GetFullPath([System.IO.Path]::Combine($PSScriptRoot, "..", "assets", "icons", "$hookName.png"))
+    if (-not ($exePath -and (Test-Path $exePath))) { return $staticIcon }
+
+    $exeSlug  = [System.IO.Path]::GetFileNameWithoutExtension($exePath).ToLower()
+    $cacheDir = [System.IO.Path]::Combine($PSScriptRoot, "icons-cache")
+    $iconPath = [System.IO.Path]::Combine($cacheDir, "$hookName-$exeSlug.png")
+    if (-not (Test-Path $cacheDir)) { New-Item -ItemType Directory -Path $cacheDir | Out-Null }
+    if (Test-Path $iconPath) { return $iconPath }
+
+    try {
+        Add-Type -AssemblyName System.Drawing -ErrorAction Stop
+        $bmp = [System.Drawing.Bitmap]::new(48, 48)
+        $g   = [System.Drawing.Graphics]::FromImage($bmp)
+        $g.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
+        $g.Clear([System.Drawing.Color]::Transparent)
+
+        # 底层：exe 图标铺满画布
+        $appIcon = [System.Drawing.Icon]::ExtractAssociatedIcon($exePath)
+        if ($appIcon) {
+            $appBmp = $appIcon.ToBitmap()
+            $appIcon.Dispose()
+            $g.DrawImage($appBmp, [System.Drawing.Rectangle]::new(0, 0, 48, 48))
+            $appBmp.Dispose()
+        }
+
+        # 上层：叠加静态符号 PNG
+        $overlay = [System.Drawing.Bitmap]::new($staticIcon)
+        $g.DrawImage($overlay, [System.Drawing.Rectangle]::new(0, 0, 48, 48))
+        $overlay.Dispose()
+        $g.Dispose()
+
+        $bmp.Save($iconPath, [System.Drawing.Imaging.ImageFormat]::Png)
+        $bmp.Dispose()
+        Write-Log "icon cached: $iconPath"
+        return $iconPath
+    } catch {
+        Write-Log "icon generation failed: $_"
+        return $staticIcon
+    }
+}
+
+$hookName = switch ($eventName) {
     'Stop'              { 'stop' }
     'PermissionRequest' { 'permission' }
     default             { 'info' }
 }
-$iconPath = [System.IO.Path]::GetFullPath([System.IO.Path]::Combine($PSScriptRoot, "..", "assets", "icons", "$iconName.png"))
+$iconPath = Get-NotifyIcon $hookName $terminalExePath
 
-# 3. Build toast payload
+# 3. 构建 toast 通知内容
 # dev 版本在标题前添加 [DEV] 标记
 $devMarker = if ($isDev) { "[DEV] " } else { "" }
 $notificationTitle = "$devMarker$Title ($terminalName)"
@@ -75,10 +120,10 @@ $iconXml = ''
 if ($iconPath -and (Test-Path $iconPath)) {
     $uriPath = $iconPath.Replace('\', '/')
     $escapedIconSrc = [System.Security.SecurityElement]::Escape("file:///$uriPath")
-    $iconXml = "<image placement=`"appLogoOverride`" src=`"$escapedIconSrc`" hint-crop=`"circle`"/>"
+    $iconXml = "<image placement=`"appLogoOverride`" src=`"$escapedIconSrc`"/>"
 }
 
-# 4. Send toast
+# 4. 发送 toast 通知
 try {
     [Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] | Out-Null
     [Windows.Data.Xml.Dom.XmlDocument, Windows.Data.Xml.Dom, ContentType = WindowsRuntime] | Out-Null
@@ -104,7 +149,7 @@ try {
     Write-Log "toast sent: $notificationTitle"
 } catch { Write-Log "toast failed: $_" }
 
-# 5. Flash taskbar
+# 5. 任务栏闪烁
 if ($hwnd) {
     try {
         Add-Type -TypeDefinition 'using System; using System.Runtime.InteropServices; public class FlashW { [DllImport("user32.dll")] public static extern bool FlashWindowEx(ref FLASHWINFO p); [StructLayout(LayoutKind.Sequential)] public struct FLASHWINFO { public uint cbSize; public IntPtr hwnd; public uint dwFlags; public uint uCount; public uint dwTimeout; } }' -ErrorAction SilentlyContinue

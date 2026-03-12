@@ -18,6 +18,32 @@ Claude Hook (stdin JSON)
 VSCode 集成 git bash 场景下，MSYS2 bash fork 会断开 PowerShell 自身的父进程链，
 但 Node.exe 是纯 Win32 进程，其父链完整，因此在 Node 侧查找更可靠。
 
+## 图标合成
+
+Toast 图标 = 底层 exe 图标 + 上层静态符号 PNG，由 [`scripts/notify.ps1`](scripts/notify.ps1) 在运行时叠加合成。
+
+### 设计决策
+
+**为什么用图标而不是纯文字通知？**
+
+图标能同时传达两个维度的信息（hook type + 终端来源），用户一眼即可识别，无需阅读文字；纯文字通知需要逐字解析，信息提取速度更慢。
+
+**hook 符号层为什么静态预生成，而不是运行时绘制？**
+
+符号（✓ / Q / i）与终端 exe 无关，内容固定。预生成为 PNG 随包分发，运行时只需 `DrawImage`，避免在 ps1 里维护大量 GDI+ path/pen 绘制代码（原动态方案约 100 行）。
+
+**为什么还需要运行时合成，不直接用静态图标？**
+
+通知图标的底层显示终端 exe 图标（VS Code、Windows Terminal 等），让用户一眼知道是哪个终端触发的。exe 图标因用户环境而异，无法预生成，必须运行时提取。若无法获取终端 exe 路径（如未传入 HWND），则直接显示静态符号图标，不做合成。
+
+**缓存文件名为什么包含 exe slug？**
+
+不同 app 可能先后触发同一 hook type（如 VS Code 和 Windows Terminal 都触发 Stop），底层图标不同，必须按 `{hookName}-{exeSlug}` 分别缓存，否则后写的会覆盖前者，导致图标错乱。
+
+**为什么不需要关心缓存清理？**
+
+缓存位于 npm 包目录内，安装时自动随包目录重建而清空，无需额外处理，也不存在版本间的缓存兼容问题。
+
 ## 环境变量（cli.js → notify.ps1）
 
 | 变量 | 说明 |
