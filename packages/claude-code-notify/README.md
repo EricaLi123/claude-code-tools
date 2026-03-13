@@ -4,6 +4,21 @@ Windows Toast notifications for Claude Code.
 
 Get notified when Claude finishes a task or needs your permission.
 
+## 解决什么问题
+
+Claude Code 会话可能长时间运行，用户切到其他窗口后无法感知状态变化。本工具解决两个核心问题：
+
+### 1. 提醒 — 让用户知道某个会话需要关注
+
+- 系统原生 Toast 通知
+- 任务栏闪烁
+
+### 2. 定位 — 帮助用户找到并回到该会话
+
+- 通知内容包含终端类型、项目名等上下文，便于识别
+- 闪烁对应的终端窗口，视觉引导
+- 通知提供 "Open" 按钮，点击直接激活目标窗口
+
 ## Features
 
 - **Toast notification** — native WinRT toast, no BurntToast or other modules needed
