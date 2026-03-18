@@ -94,11 +94,26 @@ const watcherContent = read("scripts/tab-color-watcher.ps1");
 test("cli.js resolves hwnd, shell pid, and spawns watcher through launcher", () => {
   assert(cliContent.includes("find-hwnd.ps1"));
   assert(cliContent.includes("get-shell-pid.ps1"));
-  assert(cliContent.includes("tab-color-watcher.ps1"));
   assert(cliContent.includes("start-tab-color-watcher.ps1"));
   assert(cliContent.includes("--shell-pid"));
   assert(cliContent.includes("launcher exited status="));
   assert(cliContent.includes("WatcherPidFile"));
+});
+
+test("cli.js includes codex watcher mode", () => {
+  assert(cliContent.includes("codex-watch"));
+  assert(cliContent.includes('"app-server"'));
+  assert(cliContent.includes("thread/status/changed"));
+  assert(cliContent.includes("waitingOnApproval"));
+  assert(cliContent.includes("thread/list"));
+  assert(cliContent.includes("Codex Needs Approval"));
+});
+
+test("cli.js resolves Windows codex shims before spawning", () => {
+  assert(cliContent.includes("resolveCodexLaunch"));
+  assert(cliContent.includes("where.exe"));
+  assert(cliContent.includes('process.env.ComSpec || "cmd.exe"'));
+  assert(cliContent.includes('".cmd"'));
 });
 
 test("notify.ps1 uses native toast + flash", () => {
@@ -119,6 +134,13 @@ test("watcher resets through console attachment plus standard streams", () => {
   assert(watcherContent.includes("[Console]::OpenStandardError()"));
   assert(watcherContent.includes('"$ESC]104;264$ST"'));
   assert(!watcherContent.includes("SendKeys"));
+});
+
+test("README documents codex watcher usage", () => {
+  const readmeContent = read("README.md");
+  assert(readmeContent.includes("codex-watch"));
+  assert(readmeContent.includes("waitingOnApproval"));
+  assert(readmeContent.includes("thread/status/changed"));
 });
 
 console.log("\n--- Smoke ---");

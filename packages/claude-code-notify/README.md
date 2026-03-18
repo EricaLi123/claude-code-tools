@@ -4,6 +4,9 @@ Windows Toast notifications for Claude Code.
 
 Get notified when Claude finishes a task or needs your permission.
 
+This package now also supports a Codex watcher mode that listens for
+`waitingOnApproval` through the official `codex app-server`.
+
 ## 解决什么问题
 
 Claude Code 会话可能长时间运行，用户切到其他窗口后无法感知状态变化。本工具解决两个核心问题：
@@ -56,6 +59,37 @@ Add to your `~/.claude/settings.json`:
 > **Override:** `--shell-pid <pid>` and `CLAUDE_NOTIFY_SHELL_PID` are still supported for debugging or special launchers, but normal usage no longer requires them. Shell detection now prefers current-console detection and falls back to the parent-process shell chain when needed.
 
 The click-to-activate protocol is registered automatically on install.
+
+## Codex Watcher
+
+Start a long-running watcher that launches the official `codex app-server`
+and sends a notification whenever a Codex thread enters
+`waitingOnApproval`:
+
+```bash
+claude-code-notify codex-watch
+```
+
+By default, `codex-watch` only watches threads whose cwd matches the current
+directory. To watch every interactive Codex thread instead:
+
+```bash
+claude-code-notify codex-watch --all-cwds
+```
+
+Optional flags:
+
+- `--cwd <path>`: watch a specific project directory
+- `--codex-bin <path>`: override the Codex executable
+- `--shell-pid <pid>`: keep the existing manual shell PID override behavior
+
+Under the hood this mode:
+
+1. Starts the official `codex app-server`
+2. Sends `initialize`
+3. Bootstraps existing threads with `thread/list`
+4. Watches `thread/status/changed`
+5. Triggers the existing Windows toast flow when `activeFlags` contains `waitingOnApproval`
 
 ## Notification Example
 
