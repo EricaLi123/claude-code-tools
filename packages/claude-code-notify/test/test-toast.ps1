@@ -13,7 +13,6 @@ $scriptRoot    = Split-Path -Parent $PSScriptRoot
 $notifyScript  = Join-Path $scriptRoot "scripts\notify.ps1"
 $findHwndScript = Join-Path $scriptRoot "scripts\find-hwnd.ps1"
 $logFile       = Join-Path $env:TEMP "claude-notify-test.log"
-$projectDir    = 'C:\Users\test\my-awesome-project'
 
 # 使用当前终端窗口（从当前 PID 向上找父链中第一个有窗口的进程）
 $findResult = & powershell.exe -NoProfile -EP Bypass -File $findHwndScript -StartPid $PID 2>$null
@@ -31,12 +30,13 @@ function Send-Toast([string]$eventName, [string]$testHwnd = '', [string]$title =
     $psi.RedirectStandardError = $true
 
     # --- 全量环境变量（与 cli.js 传入保持一致）---
-    $psi.EnvironmentVariables['CLAUDE_NOTIFY_EVENT']    = $eventName   # Stop / PermissionRequest / 其他
-    $psi.EnvironmentVariables['CLAUDE_NOTIFY_IS_DEV']   = '0'          # 1=显示[DEV]标记, 0=生产
-    $psi.EnvironmentVariables['CLAUDE_NOTIFY_LOG_FILE'] = $logFile     # 日志文件路径
-    $psi.EnvironmentVariables['CLAUDE_PROJECT_DIR']     = $projectDir  # 项目目录，显示在消息体
-    $psi.EnvironmentVariables['CLAUDE_NOTIFY_HWND']     = $testHwnd    # 窗口句柄，空字符串=无窗口
-    $psi.EnvironmentVariables['CLAUDE_NOTIFY_TITLE']    = $title       # 测试 case 名称作为标题
+    $psi.EnvironmentVariables['TOAST_NOTIFY_EVENT']      = $eventName   # Stop / PermissionRequest / 其他
+    $psi.EnvironmentVariables['TOAST_NOTIFY_IS_DEV']     = '0'          # 1=显示[DEV]标记, 0=生产
+    $psi.EnvironmentVariables['TOAST_NOTIFY_LOG_FILE']   = $logFile     # 日志文件路径
+    $psi.EnvironmentVariables['TOAST_NOTIFY_HWND']       = $testHwnd    # 窗口句柄，空字符串=无窗口
+    $psi.EnvironmentVariables['TOAST_NOTIFY_TITLE']      = $title       # 测试 case 名称作为标题
+    $psi.EnvironmentVariables['TOAST_NOTIFY_MESSAGE']    = 'Toast test message'
+    $psi.EnvironmentVariables['TOAST_NOTIFY_SOURCE']     = 'Test'
 
     $proc = [System.Diagnostics.Process]::Start($psi)
     $stderr = $proc.StandardError.ReadToEnd()
@@ -45,7 +45,7 @@ function Send-Toast([string]$eventName, [string]$testHwnd = '', [string]$title =
 }
 
 Write-Host ''
-Write-Host '=== Claude Code Notify - Toast Test ===' -ForegroundColor Cyan
+Write-Host '=== Notification Toast Test ===' -ForegroundColor Cyan
 Write-Host '  hook types  : Stop / PermissionRequest / default(info)'
 Write-Host '  window cases: no-hwnd / with-hwnd'
 Write-Host '  total cases : 6'
@@ -76,6 +76,6 @@ Write-Host '  - permissionRequest: 橙色 Q 图标'
 Write-Host '  - default/info   : 蓝色 i 图标'
 Write-Host '  - with hwnd      : 图标叠加终端 exe 图标，任务栏闪烁'
 Write-Host '  - no hwnd        : 纯静态符号图标，无闪烁'
-Write-Host '  - title          : 每条通知标题 = 测试 case 名称（如 "Stop | with hwnd"）'
-Write-Host '  - 消息体均含项目名: my-awesome-project'
+Write-Host '  - title          : 每条通知标题 = [Test] + 测试 case 名称'
+Write-Host '  - message        : 固定为 Toast test message'
 Write-Host ''

@@ -2,7 +2,7 @@
 
 ## 背景
 
-`claude-code-notify` 需要在 Windows Terminal 多 Tab 场景下，既能提醒用户“有一个 Claude 会话需要关注”，又能让用户在回到终端时快速定位到对应的 Tab。
+这个通知工具需要在 Windows Terminal 多 Tab 场景下，既能提醒用户“有一个会话需要关注”，又能让用户在回到终端时快速定位到对应的 Tab。
 
 窗口级通知已经有：
 

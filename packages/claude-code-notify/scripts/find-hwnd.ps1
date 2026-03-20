@@ -1,5 +1,5 @@
 # 从指定 PID 向上遍历父进程链，输出第一个有窗口 handle 的进程的 hwnd。
-# 由 cli.js 在 spawn notify.ps1 之前调用，结果通过 CLAUDE_NOTIFY_HWND 环境变量传入。
+# 由 cli.js 在 spawn notify.ps1 之前调用，结果通过 TOAST_NOTIFY_HWND 环境变量传入。
 # -IncludeShellPid 启用时，输出格式为 hwnd|shellPid|isWindowsTerminal(1/0)
 param([int]$StartPid, [switch]$IncludeShellPid)
 

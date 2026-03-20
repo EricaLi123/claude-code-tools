@@ -8,9 +8,9 @@ param(
 $ErrorActionPreference = 'Stop'
 
 function Write-Log($msg) {
-    if (-not $env:CLAUDE_NOTIFY_LOG_FILE) { return }
+    if (-not $env:TOAST_NOTIFY_LOG_FILE) { return }
     $line = "[$(Get-Date -Format 'yyyy-MM-ddTHH:mm:ss.fffZ')] [watcher-launcher pid=$PID] $msg"
-    try { [System.IO.File]::AppendAllText($env:CLAUDE_NOTIFY_LOG_FILE, "$line`n") } catch {}
+    try { [System.IO.File]::AppendAllText($env:TOAST_NOTIFY_LOG_FILE, "$line`n") } catch {}
 }
 
 try {

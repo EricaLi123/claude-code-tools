@@ -8,6 +8,8 @@ const fs = require("fs");
 const path = require("path");
 
 const ROOT = path.join(__dirname, "..");
+const cli = require(path.join(ROOT, "bin", "cli.js"));
+const { normalizeIncomingNotification } = require(path.join(ROOT, "lib", "notification-sources.js"));
 
 let passed = 0;
 let failed = 0;
@@ -56,6 +58,7 @@ console.log("\n--- File structure ---");
 
 [
   "bin/cli.js",
+  "lib/notification-sources.js",
   "postinstall.js",
   "scripts/find-hwnd.ps1",
   "scripts/get-shell-pid.ps1",
@@ -106,7 +109,205 @@ test("cli.js includes codex watcher mode", () => {
   assert(cliContent.includes("thread/status/changed"));
   assert(cliContent.includes("waitingOnApproval"));
   assert(cliContent.includes("thread/list"));
-  assert(cliContent.includes("Codex Needs Approval"));
+  assert(!cliContent.includes("Codex Needs Approval"));
+});
+
+test("cli.js includes codex session watcher mode", () => {
+  assert(cliContent.includes("codex-session-watch"));
+  assert(cliContent.includes("exec_approval_request"));
+  assert(cliContent.includes("request_permissions"));
+  assert(cliContent.includes("apply_patch_approval_request"));
+  assert(cliContent.includes("codex-tui.log"));
+  assert(cliContent.includes('ToolCall: shell_command '));
+  assert(cliContent.includes('"sandbox_permissions":"require_escalated"'));
+  assert(!cliContent.includes("apply_patch_outside_workspace"));
+  assert(cliContent.includes("sessionsDir"));
+});
+
+test("session watcher recognizes response_item function_call approvals early", () => {
+  const event = cli.buildCodexSessionEvent(
+    {
+      filePath: "C:\\Users\\ericali\\.codex\\sessions\\2026\\03\\20\\rollout-2026-03-20T12-14-50-session-1.jsonl",
+      sessionId: "session-1",
+      cwd: "C:\\Users\\ericali",
+      turnId: "turn-1",
+    },
+    {
+      type: "response_item",
+      payload: {
+        type: "function_call",
+        name: "shell_command",
+        call_id: "call-1",
+        arguments: JSON.stringify({
+          command: "Get-Date",
+          sandbox_permissions: "require_escalated",
+          workdir: "C:\\Users\\ericali",
+        }),
+      },
+    }
+  );
+
+  assert(event);
+  assert(event.eventName === "PermissionRequest");
+  assert(event.eventType === "require_escalated_tool_call");
+  assert(event.turnId === "turn-1");
+  assert(event.dedupeKey === "session-1|exec|turn-1|shell_command:Get-Date");
+});
+
+test("session watcher ignores non-escalated function_call response items", () => {
+  const event = cli.buildCodexSessionEvent(
+    {
+      filePath: "C:\\Users\\ericali\\.codex\\sessions\\2026\\03\\20\\rollout-2026-03-20T12-14-50-session-2.jsonl",
+      sessionId: "session-2",
+      cwd: "C:\\Users\\ericali",
+      turnId: "turn-2",
+    },
+    {
+      type: "response_item",
+      payload: {
+        type: "function_call",
+        name: "shell_command",
+        call_id: "call-2",
+        arguments: JSON.stringify({
+          command: "Get-Date",
+          workdir: "C:\\Users\\ericali",
+        }),
+      },
+    }
+  );
+
+  assert(event === null);
+});
+
+test("tui watcher recognizes shell approvals from ToolCall lines instead of exec_approval dispatch", () => {
+  const event = cli.buildCodexTuiApprovalEvent(
+    { applyPatchCapture: null },
+    '2026-03-20T04:15:29.835774Z  INFO session_loop{thread_id=session-3}:submission_dispatch{otel.name="op.dispatch.user_turn" submission.id="submission-3" codex.op="user_turn"}:turn{otel.name="session_task.turn" thread.id=session-3 turn.id=turn-3 model=gpt-5.4}: codex_core::stream_events_utils: ToolCall: shell_command {"command":"Get-Date","sandbox_permissions":"require_escalated","workdir":"C:\\\\Users\\\\ericali"} thread_id=session-3',
+    {
+      sessionProjectDirs: new Map([["session-3", "C:\\Users\\ericali"]]),
+      sessionWritableRoots: new Map(),
+    }
+  );
+
+  assert(event);
+  assert(event.eventType === "require_escalated_tool_call");
+  assert(event.dedupeKey === "session-3|exec|turn-3|shell_command:Get-Date");
+});
+
+test("session watcher recognizes explicit apply_patch approval events from rollout JSONL", () => {
+  const event = cli.buildCodexSessionEvent(
+    {
+      filePath: "C:\\Users\\ericali\\.codex\\sessions\\2026\\03\\20\\rollout-2026-03-20T12-14-50-session-4.jsonl",
+      sessionId: "session-4",
+      cwd: "C:\\Users\\ericali",
+      turnId: "turn-4",
+    },
+    {
+      type: "event_msg",
+      payload: {
+        type: "apply_patch_approval_request",
+        turn_id: "turn-4",
+        call_id: "call-4",
+        approval_id: "approval-4",
+        cwd: "D:\\XAGIT\\claude-code-tools\\packages\\claude-code-notify",
+      },
+    }
+  );
+
+  assert(event);
+  assert(event.eventType === "apply_patch_approval_request");
+  assert(event.dedupeKey === "session-4|patch|turn-4|");
+});
+
+test("tui watcher ignores apply_patch tool calls because they are not reliable approval signals", () => {
+  const event = cli.buildCodexTuiApprovalEvent(
+    {},
+    '2026-03-20T09:24:55.432022Z  INFO session_loop{thread_id=session-5}:submission_dispatch{otel.name="op.dispatch.user_turn" submission.id="submission-5" codex.op="user_turn"}:turn{otel.name="session_task.turn" thread.id=session-5 turn.id=turn-5 model=gpt-5.4}: codex_core::stream_events_utils: ToolCall: apply_patch *** Begin Patch',
+    {
+      sessionProjectDirs: new Map([["session-5", "C:\\Users\\ericali"]]),
+    }
+  );
+
+  assert(event === null);
+});
+
+test("notification source normalizer recognizes Claude hook payloads", () => {
+  const normalized = normalizeIncomingNotification({
+    argv: [],
+    stdinData: JSON.stringify({
+      hook_event_name: "PermissionRequest",
+      session_id: "claude-session-1",
+      title: "Claude Needs Permission",
+    }),
+    env: {},
+  });
+
+  assert(normalized.sourceId === "claude-hook");
+  assert(normalized.source === "Claude");
+  assert(normalized.eventName === "PermissionRequest");
+  assert(normalized.sessionId === "claude-session-1");
+  assert(normalized.title === "Needs Approval");
+  assert(normalized.message === "Waiting for your approval");
+  assert(normalized.projectDir === "");
+});
+
+test("notification source normalizer canonicalizes source-prefixed stop titles", () => {
+  const normalized = normalizeIncomingNotification({
+    argv: [],
+    stdinData: JSON.stringify({
+      hook_event_name: "Stop",
+      session_id: "claude-session-2",
+      title: "Codex Done",
+    }),
+    env: {},
+  });
+
+  assert(normalized.title === "Done");
+});
+
+test("notification source normalizer recognizes Codex legacy notify argv payloads", () => {
+  const normalized = normalizeIncomingNotification({
+    argv: [
+      "--shell-pid",
+      "123",
+      JSON.stringify({
+        type: "agent-turn-complete",
+        "thread-id": "thread-123",
+        "turn-id": "turn-123",
+        cwd: "D:\\XAGIT\\claude-code-tools",
+        client: "codex-tui",
+        "input-messages": ["Ping"],
+        "last-assistant-message": "Pong",
+      }),
+    ],
+    stdinData: "",
+    env: {},
+  });
+
+  assert(normalized.sourceId === "codex-legacy-notify");
+  assert(normalized.source === "Codex");
+  assert(normalized.eventName === "Stop");
+  assert(normalized.title === "Done");
+  assert(normalized.message === "Task finished");
+  assert(normalized.sessionId === "thread-123");
+  assert(normalized.turnId === "turn-123");
+  assert(normalized.projectDir === "D:\\XAGIT\\claude-code-tools");
+});
+
+test("notification source normalizer respects explicit source title and message", () => {
+  const normalized = normalizeIncomingNotification({
+    argv: [],
+    stdinData: JSON.stringify({
+      source: "BuildBot",
+      title: "Queued",
+      message: "Waiting in CI",
+    }),
+    env: {},
+  });
+
+  assert(normalized.source === "BuildBot");
+  assert(normalized.title === "Queued");
+  assert(normalized.message === "Waiting in CI");
 });
 
 test("cli.js resolves Windows codex shims before spawning", () => {
@@ -120,6 +321,20 @@ test("notify.ps1 uses native toast + flash", () => {
   assert(notifyContent.includes("ToastNotificationManager"));
   assert(notifyContent.includes("FlashWindowEx"));
   assert(notifyContent.includes("activationType=`\"protocol`\""));
+  assert(notifyContent.includes("Needs Approval"));
+  assert(!notifyContent.includes("Needs Permission"));
+  assert(notifyContent.includes("[$source] $baseTitle"));
+});
+
+test("cli.js passes neutral notify env vars to PowerShell", () => {
+  assert(cliContent.includes("TOAST_NOTIFY_EVENT"));
+  assert(cliContent.includes("TOAST_NOTIFY_SOURCE"));
+  assert(cliContent.includes("TOAST_NOTIFY_TITLE"));
+  assert(cliContent.includes("TOAST_NOTIFY_MESSAGE"));
+  assert(cliContent.includes("TOAST_NOTIFY_LOG_FILE"));
+  assert(!cliContent.includes("TOAST_NOTIFY_PROJECT_DIR"));
+  assert(!cliContent.includes("CLAUDE_NOTIFY_PROJECT_DIR"));
+  assert(!cliContent.includes("CLAUDE_PROJECT_DIR"));
 });
 
 test("postinstall registers protocol", () => {
@@ -141,6 +356,23 @@ test("README documents codex watcher usage", () => {
   assert(readmeContent.includes("codex-watch"));
   assert(readmeContent.includes("waitingOnApproval"));
   assert(readmeContent.includes("thread/status/changed"));
+});
+
+test("README documents codex session watcher usage", () => {
+  const readmeContent = read("README.md");
+  assert(readmeContent.includes("codex-session-watch"));
+  assert(readmeContent.includes("response_item"));
+  assert(readmeContent.includes("codex-tui.log"));
+  assert(readmeContent.includes("sandbox_permissions"));
+  assert(readmeContent.includes("apply_patch_approval_request"));
+  assert(readmeContent.includes("does not infer approval from `ToolCall: apply_patch`"));
+});
+
+test("README documents direct Codex notify support and limitation", () => {
+  const readmeContent = read("README.md");
+  assert(readmeContent.includes("agent-turn-complete"));
+  assert(readmeContent.includes("notify = [\"claude-code-notify\"]"));
+  assert(readmeContent.includes("cannot signal approval requests"));
 });
 
 console.log("\n--- Smoke ---");
@@ -186,6 +418,40 @@ if (!canSpawnChildren) {
           stdio: ["pipe", "pipe", "pipe"],
         });
       });
+    });
+
+    test("cli.js exits cleanly for Codex legacy notify argv payload", () => {
+      execFileSync(
+        "node",
+        [
+          path.join(ROOT, "bin", "cli.js"),
+          JSON.stringify({
+            type: "agent-turn-complete",
+            "thread-id": "thread-smoke-1",
+            "turn-id": "turn-smoke-1",
+            cwd: "D:\\XAGIT\\claude-code-tools",
+            client: "codex-tui",
+            "input-messages": ["Ping"],
+            "last-assistant-message": "Pong",
+          }),
+        ],
+        {
+          timeout: 15000,
+          encoding: "utf8",
+          stdio: ["pipe", "pipe", "pipe"],
+        }
+      );
+    });
+
+    test("cli.js prints help for codex-session-watch", () => {
+      const output = execFileSync("node", [path.join(ROOT, "bin", "cli.js"), "codex-session-watch", "--help"], {
+        timeout: 15000,
+        encoding: "utf8",
+        stdio: ["pipe", "pipe", "pipe"],
+      });
+      assert(output.includes("codex-session-watch"));
+      assert(output.includes("--sessions-dir"));
+      assert(output.includes("--tui-log"));
     });
   } else {
     console.log("  SKIP  Windows-only smoke checks");

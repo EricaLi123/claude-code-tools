@@ -18,7 +18,7 @@ Implement a local-only way for `@erica_s/claude-code-notify` to notify when Code
 
 ## Starting Constraints
 
-- Existing package behavior was Claude-hook-only.
+- Existing package behavior only handled the original stdin hook path.
 - Existing package had zero runtime dependencies and tests asserted that.
 - User wanted to keep using the official Codex package.
 - User rejected any approach that required forking or patching Codex itself.
@@ -200,3 +200,11 @@ What was learned:
 2. A standalone watcher process can launch and talk to official app-server
 3. That watcher does not act as a global observer for approvals originating in other Codex sessions
 4. The architecture failure is in the approach boundary, not in local installation or Windows command resolution
+
+## Follow-up (2026-03-20)
+
+This conclusion remained relevant after later package iterations.
+
+- The package later added `codex-session-watch` and that became the primary approval path for normal Codex CLI usage.
+- `codex-watch` was retained as a narrower app-server-scoped / debugging mode, not as the default global approval watcher.
+- A later review also recorded that single-`cwd` mode in `codex-watch` only applies the `cwd` filter during bootstrap `thread/list`; live `thread/status/changed` notifications do not carry `cwd`, so project scoping in that mode is best-effort rather than a strict guarantee.

@@ -1,11 +1,15 @@
 # claude-code-notify
 
-Windows Toast notifications for Claude Code.
+Windows Toast notifications for Claude Code and Codex.
 
-Get notified when Claude finishes a task or needs your permission.
+Get notified when Claude or Codex finishes a task, or when a watcher sees an
+approval request.
 
-This package now also supports a Codex watcher mode that listens for
-`waitingOnApproval` through the official `codex app-server`.
+This package now also supports Codex integration modes for:
+
+- handling Codex direct `notify` payloads passed as a JSON argv argument for completion notifications
+- watching local Codex rollout session files and TUI logs for approval notifications through `codex-session-watch`
+- watching `waitingOnApproval` through the official `codex app-server` connection launched by this package through `codex-watch`
 
 ## 解决什么问题
 
@@ -18,7 +22,7 @@ Claude Code 会话可能长时间运行，用户切到其他窗口后无法感�
 
 ### 2. 定位 — 帮助用户找到并回到该会话
 
-- 通知内容包含终端类型、项目名等上下文，便于识别
+- 通知标题包含来源和事件结果，便于识别
 - 闪烁对应的终端窗口，视觉引导
 - 通知提供 "Open" 按钮，点击直接激活目标窗口
 
@@ -56,11 +60,86 @@ Add to your `~/.claude/settings.json`:
 
 > **Note:** `npx --yes @erica_s/claude-code-notify` also works, but the download delay on first run may cause stdin data to be lost in async hooks. Global install is recommended for reliability.
 >
-> **Override:** `--shell-pid <pid>` and `CLAUDE_NOTIFY_SHELL_PID` are still supported for debugging or special launchers, but normal usage no longer requires them. Shell detection now prefers current-console detection and falls back to the parent-process shell chain when needed.
+> **Override:** `--shell-pid <pid>` and `TOAST_NOTIFY_SHELL_PID` are supported for debugging or special launchers, but normal usage no longer requires them. Shell detection now prefers current-console detection and falls back to the parent-process shell chain when needed.
 
 The click-to-activate protocol is registered automatically on install.
 
-## Codex Watcher
+## Codex Direct Notify
+
+Codex `notify` executes a program directly and appends a JSON payload as the
+final argv argument. This package now understands that payload shape in its
+default mode, so you can point Codex at `claude-code-notify` directly:
+
+```toml
+notify = ["claude-code-notify"]
+```
+
+Current Codex direct-notify payloads use a shape like:
+
+```json
+{
+  "type": "agent-turn-complete",
+  "thread-id": "12345",
+  "turn-id": "67890",
+  "cwd": "D:\\XAGIT\\claude-code-tools",
+  "client": "codex-tui",
+  "input-messages": ["Rename foo to bar"],
+  "last-assistant-message": "Rename complete."
+}
+```
+
+Important limitation: Codex's current legacy `notify` hook only emits the
+`after_agent` payload shape above. It cannot signal approval requests. If you
+want approval notifications from normal Codex CLI usage, use
+`codex-session-watch`. `codex-watch` is a narrower app-server-scoped mode and
+should not be treated as the default global approval watcher.
+
+If your Codex runtime cannot resolve `claude-code-notify` from `PATH`, point
+`notify` to the full `.cmd` shim path or a wrapper script instead.
+
+## Codex Session Watcher (Recommended For Approval Notifications)
+
+Start a long-running watcher that tails local Codex rollout files under
+`~/.codex/sessions` and the Codex TUI log under `~/.codex/log/codex-tui.log`.
+This is the primary approval-watcher path for normal Codex CLI usage. It sends
+a notification when Codex requests approval:
+
+```bash
+claude-code-notify codex-session-watch
+```
+
+Optional flags:
+
+- `--sessions-dir <path>`: override the Codex sessions directory
+- `--tui-log <path>`: override the Codex TUI log path
+- `--poll-ms <ms>`: change the polling interval
+
+This mode watches these local Codex signals:
+
+- rollout approval events when present:
+  - `exec_approval_request`
+  - `request_permissions`
+  - `apply_patch_approval_request`
+- rollout tool calls that request sandbox escalation:
+  - `response_item` with `type == "function_call"`
+  - function-call arguments contain `"sandbox_permissions":"require_escalated"`
+- TUI early approval signals:
+  - `ToolCall: shell_command { ... "sandbox_permissions":"require_escalated" ... }`
+
+It intentionally does not rely on `op.dispatch.exec_approval` or
+`op.dispatch.patch_approval`, because those lines appear when the approval is
+handled, not when the approval prompt first appears.
+
+It also intentionally does not infer approval from `ToolCall: apply_patch`
+lines in `codex-tui.log`. Real Codex sessions can emit cross-workspace
+`apply_patch` tool calls that execute successfully without any user approval
+prompt, and that heuristic caused false positive `Needs Approval` toasts.
+
+> **Note:** session-watcher mode runs outside the original Codex terminal
+> process, so it can show Toast notifications, but it cannot reliably flash
+> or reopen the exact source terminal window.
+
+## Codex App-Server Watcher (Scoped / Advanced)
 
 Start a long-running watcher that launches the official `codex app-server`
 and sends a notification whenever a Codex thread enters
@@ -83,6 +162,12 @@ Optional flags:
 - `--codex-bin <path>`: override the Codex executable
 - `--shell-pid <pid>`: keep the existing manual shell PID override behavior
 
+This mode is kept for app-server-scoped workflows and protocol debugging. In
+this project's end-to-end validation, a watcher that launched its own
+`codex app-server` did not behave as a global observer for approval requests
+originating in other Codex sessions. For stock Codex CLI usage, prefer
+`codex-session-watch`.
+
 Under the hood this mode:
 
 1. Starts the official `codex app-server`
@@ -95,23 +180,21 @@ Under the hood this mode:
 
 **生产版本：**
 ```
-Title:   Claude Done (Windows Terminal)
+Title:   [Claude] Done (Windows Terminal)
 Body:    Task finished
-         my-project
 Button:  [Open]
 ```
 
 **开发版本（本地 npm link）：**
 ```
-Title:   [DEV] Claude Done (Windows Terminal)
+Title:   [DEV] [Claude] Done (Windows Terminal)
 Body:    Task finished
-         my-project
 Button:  [Open]
 ```
 
 ## How It Works
 
-1. Reads hook event JSON from stdin
+1. Reads notification payload JSON from stdin or argv
 2. Walks the process tree (ToolHelp32 snapshot) to find the terminal window
 3. Detects the current console shell PID for Windows Terminal tab tracking
 4. Writes a WT tab-color OSC immediately in the current process

@@ -1,11 +1,11 @@
-# Claude Code Notification Script — Native WinRT Toast (zero module dependencies)
+# Notification Script — Native WinRT Toast (zero module dependencies)
 # Toast fires FIRST (fast), then window detection + flash (slower)
 #
 # All hook data (event, session_id, log file path, hwnd) is passed via environment
 # variables by cli.js, which reads stdin once before spawning this script.
 
 # log 路径由 cli.js 计算并传入
-$LogFile = $env:CLAUDE_NOTIFY_LOG_FILE
+$LogFile = $env:TOAST_NOTIFY_LOG_FILE
 function Write-Log($msg) {
     $line = "[$(Get-Date -Format 'yyyy-MM-ddTHH:mm:ss.fff')] [ps1 pid=$PID] $msg"
     [Console]::Error.WriteLine($line)
@@ -15,23 +15,49 @@ function Write-Log($msg) {
 Write-Log "started"
 
 # isDev 由 cli.js 通过环境变量传入
-$isDev = $env:CLAUDE_NOTIFY_IS_DEV -ne "0"
+$isDev = $env:TOAST_NOTIFY_IS_DEV -ne "0"
+$source = if ($env:TOAST_NOTIFY_SOURCE) { $env:TOAST_NOTIFY_SOURCE } else { '' }
 
 # 1. 从 cli.js 传入的环境变量确定通知标题和内容
-$eventName = if ($env:CLAUDE_NOTIFY_EVENT) { $env:CLAUDE_NOTIFY_EVENT } else { '' }
-switch ($eventName) {
-    'Stop'              { $Title = 'Claude Done';             $Message = 'Task finished' }
-    'PermissionRequest' { $Title = 'Claude Needs Permission'; $Message = 'Waiting for your approval' }
-    default             { $Title = 'Claude';                  $Message = 'Notification' }
+$eventName = if ($env:TOAST_NOTIFY_EVENT) { $env:TOAST_NOTIFY_EVENT } else { '' }
+$baseTitle = if ($env:TOAST_NOTIFY_TITLE) { $env:TOAST_NOTIFY_TITLE } else { '' }
+$message = if ($env:TOAST_NOTIFY_MESSAGE) { $env:TOAST_NOTIFY_MESSAGE } else { '' }
+
+if (-not $baseTitle) {
+    switch ($eventName) {
+        'Stop' {
+            $baseTitle = 'Done'
+        }
+        'PermissionRequest' {
+            $baseTitle = 'Needs Approval'
+        }
+        default {
+            $baseTitle = 'Notification'
+        }
+    }
 }
-# 支持自定义标题：CLAUDE_NOTIFY_TITLE 优先于事件名推导的标题
-if ($env:CLAUDE_NOTIFY_TITLE) { $Title = $env:CLAUDE_NOTIFY_TITLE }
-$projectDir = $env:CLAUDE_PROJECT_DIR
-if ($projectDir) {
-    $projectName = Split-Path $projectDir -Leaf
-    $Message = "$Message`n$projectName"
+
+if (-not $message) {
+    switch ($eventName) {
+        'Stop' {
+            $message = 'Task finished'
+        }
+        'PermissionRequest' {
+            $message = 'Waiting for your approval'
+        }
+        default {
+            $message = 'Notification'
+        }
+    }
 }
-Write-Log "event=$eventName title=$Title"
+
+if ($source) {
+    $Title = "[$source] $baseTitle"
+} else {
+    $Title = $baseTitle
+}
+$Message = $message
+Write-Log "source=$source event=$eventName title=$Title message=$Message"
 
 # 2. 窗口检测
 $hwnd            = $null
@@ -41,8 +67,8 @@ $terminalExePath = $null
 # 3a. 优先使用 cli.js 预先找好的 hwnd（通过 find-hwnd.ps1 在 Node 侧查父链得到）。
 # 这样可以绕过 MSYS2 断链问题：git bash 里 PowerShell 自身的父链走不到编辑器窗口，
 # 但 Node → cmd → Claude Code Node → Code.exe 这条链在 Node 侧是完整的。
-if ($env:CLAUDE_NOTIFY_HWND) {
-    $hwnd = [IntPtr][long]$env:CLAUDE_NOTIFY_HWND
+if ($env:TOAST_NOTIFY_HWND) {
+    $hwnd = [IntPtr][long]$env:TOAST_NOTIFY_HWND
     try {
         $proc = Get-Process -Id (Get-Process | Where-Object { $_.MainWindowHandle -eq $hwnd } | Select-Object -First 1 -ExpandProperty Id) -ErrorAction Stop
         $terminalName    = if ($proc.Product) { $proc.Product } elseif ($proc.Description) { $proc.Description } else { $proc.ProcessName }
