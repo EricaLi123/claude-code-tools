@@ -1179,10 +1179,11 @@ test("README documents codex session watcher usage", () => {
 test("README documents direct Codex notify support and limitation", () => {
   const readmeContent = read("README.md");
   assert(readmeContent.includes("agent-turn-complete"));
-  assert(readmeContent.includes('notify = ["npx.cmd", "@erica_s/claude-code-notify"]'));
   assert(readmeContent.includes('notify = ["claude-code-notify"]'));
+  assert(readmeContent.includes("Use this in `~/.codex/config.toml`:"));
+  assert(readmeContent.includes("Windows Terminal tab highlight"));
+  assert(readmeContent.includes("15 days"));
   assert(readmeContent.includes("It cannot signal approval"));
-  assert(!readmeContent.includes("codex-notify-wrapper.vbs"));
   assert(!readmeContent.includes("CLAUDE_CODE_NOTIFY_PAYLOAD"));
 });
 
@@ -1192,6 +1193,10 @@ test("README documents the codex mcp sidecar companion", () => {
   assert(readmeContent.includes("codex-mcp-sidecar"));
   assert(readmeContent.includes("hidden-launch `codex-session-watch`"));
   assert(readmeContent.includes("[mcp_servers.claude_code_notify_sidecar]"));
+  assert(readmeContent.includes('command = "cmd.exe"'));
+  assert(
+    readmeContent.includes('args = ["/d", "/c", "claude-code-notify", "codex-mcp-sidecar"]')
+  );
   assert(readmeContent.includes("Do **not** set `cwd`"));
   assert(readmeContent.includes("Toast-only behavior"));
 });
@@ -1205,7 +1210,7 @@ test("README stays user-focused while DEVELOPMENT keeps the internal design deta
   assert(readmeContent.includes("For implementation details and design trade-offs"));
   assert(readmeContent.includes("DEVELOPMENT.md"));
   assert(developmentContent.includes("README 只保留安装、配置、常用命令"));
-  assert(developmentContent.includes("codex-notify-wrapper.vbs"));
+  assert(!readmeContent.includes("codex-notify-wrapper.vbs"));
   assert(developmentContent.includes("CLAUDE_CODE_NOTIFY_PAYLOAD"));
   assert(developmentContent.includes("提醒 + 定位的职责拆分"));
   assert(developmentContent.includes("通道能力矩阵"));

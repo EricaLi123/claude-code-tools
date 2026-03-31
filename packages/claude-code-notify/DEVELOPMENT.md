@@ -65,6 +65,10 @@ Claude Code 的 hook 习惯是把 JSON 通过 stdin 传进来；Codex 旧版 `no
 - `notify = ["npx", "@erica_s/claude-code-notify"]` 也不应作为默认方案。
   它和 `npx.cmd` 在 Windows 上并不等价；本机 `Get-Command npx` 命中的是 `npx.ps1`，`Start-Process -FilePath npx --version` 实测直接失败，报 `Access is denied`。
   即使它能启动，也仍会沿用和 `npx.cmd` 相同的“长 JSON argv”链路，因此并不能从根上解决 completion 的 `206` 问题。
+- README / 本机默认配置也不写成 `npx.cmd @erica_s/claude-code-notify`。
+  原因不只是 payload 长度；窗口定位本身也依赖通知进程 / sidecar 启动当场的父进程链来回溯原始 terminal context。
+  如果入口挂在 `npx` 下面，这条链会额外经过 `npx` / shim / launcher，结果通常会退化成“还能发 Toast，但拿不到稳定的 `hwnd` / `shellPid`”。
+  这样窗口闪烁、Toast 的 `Open`、以及 Windows Terminal tab 高亮都会失效或退回 Toast-only，因此不适合作为默认文档方案。
 - `notify = ["claude-code-notify"]` 也不行。
   这台机器上的 Codex 在拉起 `legacy_notify` 时没有解析到该命令名，`codex-tui.log` 已明确出现：
   `program not found`
@@ -73,6 +77,8 @@ Claude Code 的 hook 习惯是把 JSON 通过 stdin 传进来；Codex 旧版 `no
   最新 `codex-tui.log` 已明确出现：
   `The filename or extension is too long. (os error 206)`
   这说明 `.cmd` 只修复了 command resolution，没有修复长参数传递。
+- 还补到一个真实触发条件：`2026-03-31` 本机实测里，一个持续约 15 天、一直未 `clear` 的 Codex 会话开始稳定触发同样的 `os error 206`；执行 `clear` 后，在新会话里同样配置立即恢复正常。
+  这至少说明问题不只是“某个 shim 名称写法不对”，也和会话累计后的 completion payload 体积有关；会话越长，越容易把 Windows 这条 argv 链路打爆。
 - 因此，裸命令名和 `npx*` 这两类无路径配置，在这台机器上都不能作为稳定结论写进用户文档。
 - `.cmd` 也不能作为稳定最终方案写进用户文档；它更适合作为一次性的定位实验，用来证明“Codex 能找到命令，但 `.cmd` 链路仍会被长 payload 打爆”。
 - `wscript.exe + %LOCALAPPDATA%\\claude-code-notify\\codex-notify-wrapper.vbs` 能工作，但它要求用户在 `config.toml` 中写绝对路径；从“像一个正常 npm 包一样无感使用”的目标看，这只是临时绕行，不是可接受的最终形态。
