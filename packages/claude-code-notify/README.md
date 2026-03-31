@@ -47,20 +47,6 @@ volta install @erica_s/claude-code-notify
 npm install -g @erica_s/claude-code-notify
 ```
 
-If you are testing from this repo instead of the published package:
-
-```bash
-# run in packages/claude-code-notify
-npm link
-```
-
-If the click-to-activate protocol is not registered yet in that local-dev
-setup, run:
-
-```bash
-node postinstall.js
-```
-
 ## Claude Code
 
 Add to your `~/.claude/settings.json`:
@@ -103,21 +89,6 @@ direct invocation still works:
 ```toml
 notify = ["claude-code-notify"]
 ```
-
-On Windows, if the installed shim layer rewrites or drops the JSON argv payload,
-prefer the installed VBS wrapper written by `postinstall`:
-
-```toml
-notify = [
-  "wscript.exe",
-  "C:\\Users\\<you>\\AppData\\Local\\claude-code-notify\\codex-notify-wrapper.vbs",
-]
-```
-
-That wrapper still calls the installed `claude-code-notify` package entry. It
-only moves the payload through an environment variable first, so Windows
-`.cmd`/shim layers do not have to forward the raw JSON argument unchanged.
-The variable name is `CLAUDE_CODE_NOTIFY_PAYLOAD`.
 
 - After changing Codex `notify`, restart Codex and retest in a fresh TUI
   session. Already-running sessions keep the command they resolved at session

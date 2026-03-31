@@ -1158,8 +1158,8 @@ test("README documents direct Codex notify support and limitation", () => {
   assert(readmeContent.includes('notify = ["npx.cmd", "@erica_s/claude-code-notify"]'));
   assert(readmeContent.includes('notify = ["claude-code-notify"]'));
   assert(readmeContent.includes("It cannot signal approval"));
-  assert(readmeContent.includes("codex-notify-wrapper.vbs"));
-  assert(readmeContent.includes("CLAUDE_CODE_NOTIFY_PAYLOAD"));
+  assert(!readmeContent.includes("codex-notify-wrapper.vbs"));
+  assert(!readmeContent.includes("CLAUDE_CODE_NOTIFY_PAYLOAD"));
 });
 
 test("README documents the codex mcp sidecar companion", () => {
@@ -1176,9 +1176,13 @@ test("README stays user-focused while DEVELOPMENT keeps the internal design deta
   const readmeContent = read("README.md");
   const developmentContent = read("DEVELOPMENT.md");
   assert(!readmeContent.includes("Reminder + Localization Responsibilities"));
+  assert(!readmeContent.includes("npm link"));
+  assert(!readmeContent.includes("node postinstall.js"));
   assert(readmeContent.includes("For implementation details and design trade-offs"));
   assert(readmeContent.includes("DEVELOPMENT.md"));
   assert(developmentContent.includes("README 只保留安装、配置、常用命令"));
+  assert(developmentContent.includes("codex-notify-wrapper.vbs"));
+  assert(developmentContent.includes("CLAUDE_CODE_NOTIFY_PAYLOAD"));
   assert(developmentContent.includes("提醒 + 定位的职责拆分"));
   assert(developmentContent.includes("通道能力矩阵"));
   assert(developmentContent.includes("当前项目里的真实数据流"));
