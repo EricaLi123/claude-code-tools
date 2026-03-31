@@ -113,9 +113,6 @@ console.log("\n--- File structure ---");
 console.log("\n--- package.json ---");
 
 const pkg = JSON.parse(read("package.json"));
-const DEV_DOCS_URL =
-  "https://github.com/EricaLi123/claude-code-tools/blob/main/packages/claude-code-notify/docs/development.md";
-
 test("postinstall script points to node postinstall.js", () => {
   assert(pkg.scripts && pkg.scripts.postinstall === "node postinstall.js");
 });
@@ -1172,7 +1169,6 @@ test("README documents codex session watcher usage", () => {
   assert(readmeContent.includes("auto-start `codex-session-watch`"));
   assert(readmeContent.includes("--tui-log <path>"));
   assert(readmeContent.includes("approval reminders"));
-  assert(readmeContent.includes(DEV_DOCS_URL));
   assert(!readmeContent.includes("codex-watch"));
 });
 
@@ -1181,7 +1177,6 @@ test("README documents direct Codex notify support and limitation", () => {
   assert(readmeContent.includes("agent-turn-complete"));
   assert(readmeContent.includes('notify = ["claude-code-notify"]'));
   assert(readmeContent.includes("Recommended `~/.codex/config.toml`:"));
-  assert(readmeContent.includes("cannot signal approval requests"));
   assert(readmeContent.includes("less reliable on Windows"));
   assert(!readmeContent.includes("March 31, 2026"));
   assert(!readmeContent.includes("CLAUDE_CODE_NOTIFY_PAYLOAD"));
@@ -1197,7 +1192,6 @@ test("README documents the codex mcp sidecar companion", () => {
     readmeContent.includes('args = ["/d", "/c", "claude-code-notify", "codex-mcp-sidecar"]')
   );
   assert(readmeContent.includes("Do **not** set `cwd`"));
-  assert(readmeContent.includes("Toast-only behavior"));
 });
 
 test("README states the core reminder and return-to-session problem", () => {
@@ -1210,7 +1204,7 @@ test("README states the core reminder and return-to-session problem", () => {
   assert(readmeContent.includes("activates the target window"));
 });
 
-test("README stays user-focused while development docs are split by topic", () => {
+test("README stays user-focused while internal docs remain split by topic", () => {
   const readmeContent = read("README.md");
   const developmentContent = read("docs/development.md");
   const architectureContent = read("docs/architecture.md");
@@ -1220,8 +1214,6 @@ test("README stays user-focused while development docs are split by topic", () =
   assert(!readmeContent.includes("Reminder + Localization Responsibilities"));
   assert(!readmeContent.includes("npm link"));
   assert(!readmeContent.includes("node postinstall.js"));
-  assert(readmeContent.includes("For implementation details and design trade-offs"));
-  assert(readmeContent.includes(DEV_DOCS_URL));
   assert(developmentContent.includes("README 只保留安装、配置、常用命令"));
   assert(developmentContent.includes("./architecture.md"));
   assert(developmentContent.includes("./codex-approval.md"));

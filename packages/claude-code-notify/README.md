@@ -13,25 +13,14 @@ solves two core problems:
 
 ### 1. Reminder
 
-Let you know that a session needs attention:
-
 - Native Windows Toast notifications
 - Taskbar flashing
 
 ### 2. Return To The Session
 
-Help you find the right session and get back to it:
-
 - Notification titles make the source and result easy to identify
 - The matching terminal window flashes as a visual cue
 - The notification provides an `Open` button that activates the target window
-
-## What It Does
-
-- Claude Code completion and permission-request notifications
-- Codex completion notifications through `notify`
-- Codex approval reminders through `codex-session-watch`
-- Return-to-terminal helpers: toast title, taskbar flash, and `Open`
 
 ## Install
 
@@ -55,16 +44,9 @@ Add to your `~/.claude/settings.json`:
 }
 ```
 
-- Global install is recommended. `npx --yes @erica_s/claude-code-notify`
-  is less reliable in async hooks.
+- Prefer a global install. `npx --yes @erica_s/claude-code-notify` is less
+  reliable in async hooks.
 - The click-to-activate protocol is registered automatically on install.
-
-Manual smoke tests:
-
-```bash
-echo '{"hook_event_name":"Stop","session_id":"test-stop"}' | claude-code-notify
-echo '{"hook_event_name":"PermissionRequest","session_id":"test-permission"}' | claude-code-notify
-```
 
 ## Codex
 
@@ -80,23 +62,14 @@ required = false
 startup_timeout_sec = 5
 ```
 
-### Completion
-
 - `notify = ["claude-code-notify"]` covers completion events such as
   `agent-turn-complete`.
-- Codex's current legacy `notify` hook cannot signal approval requests.
-- After changing Codex `notify`, restart Codex and retest in a fresh TUI
-  session. Already-running sessions keep the command they resolved at session
-  start.
-- Prefer a globally installed `claude-code-notify`. `npx.cmd
-  @erica_s/claude-code-notify` is less reliable on Windows.
-
-### Approval
-
 - `codex-session-watch` is the main path for approval reminders.
-- `codex-mcp-sidecar` helps approval reminders find the right terminal and will
-  usually auto-start `codex-session-watch` when needed.
+- `codex-mcp-sidecar` will usually auto-start `codex-session-watch`.
 - Do **not** set `cwd` on the MCP server entry above.
+- After changing Codex `notify`, restart Codex and retest in a fresh TUI
+  session.
+- Prefer a global install. `npx.cmd @erica_s/claude-code-notify` is less reliable on Windows.
 
 If you are not using the MCP sidecar, start the watcher yourself:
 
@@ -109,22 +82,6 @@ Optional flags:
 - `--sessions-dir <path>`: override the Codex sessions directory
 - `--tui-log <path>`: override the Codex TUI log path
 - `--poll-ms <ms>`: change the polling interval
-
-By itself, `codex-session-watch` may fall back to Toast-only behavior. With
-`codex-mcp-sidecar`, return-to-terminal behavior is usually better.
-
-## Common Commands
-
-```bash
-claude-code-notify --help
-claude-code-notify codex-session-watch
-claude-code-notify codex-mcp-sidecar
-```
-
-## Development Docs
-
-For implementation details and design trade-offs, see
-[`docs/development.md`](https://github.com/EricaLi123/claude-code-tools/blob/main/packages/claude-code-notify/docs/development.md).
 
 ## Requirements
 
