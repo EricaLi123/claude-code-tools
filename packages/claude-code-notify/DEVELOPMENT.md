@@ -52,13 +52,30 @@ Claude Code 的 hook 习惯是把 JSON 通过 stdin 传进来；Codex 旧版 `no
 
 **配置约束：尽量不要把 Codex `notify` 长期改成 `node.exe + 本地 bin/cli.js` 直连：**
 
-- 当前文档里的 Codex `notify` 主示例应优先写成
-  `notify = ["npx.cmd", "@erica_s/claude-code-notify"]`
-- 如果用户机器上已经把包暴露成 `claude-code-notify` 命令，直接写
-  `notify = ["claude-code-notify"]` 仍然可以
-- 常规方案应优先使用发布包形态，或用户机器上实际安装出来的 shim / wrapper 路径。
+- 常规方案仍应优先使用发布包形态，或用户机器上实际安装出来的 shim / wrapper 路径。
 - 原因不是“直连一定不能工作”，而是它会偏离真实用户安装形态，容易把本地排查路径和 npm 包实际行为混在一起。
 - 如果为了隔离某一层 wrapper 问题，临时做一次直连诊断可以接受；但这类配置不应成为默认文档、长期配置，或后续方案设计的前提。
+
+**当前这台 Windows 机器上，Codex completion 的 `notify` 配置实测结论：**
+
+- `notify = ["npx.cmd", "@erica_s/claude-code-notify"]` 不行。
+  Codex 会把 completion 的整段 JSON payload 直接作为 argv 传给 notify 命令；这条链在 Windows 上会撞到命令行长度 / 重解析问题。
+  `codex-tui.log` 已明确出现：
+  `The filename or extension is too long. (os error 206)`
+- `notify = ["npx", "@erica_s/claude-code-notify"]` 也不应作为默认方案。
+  它和 `npx.cmd` 在 Windows 上并不等价；本机 `Get-Command npx` 命中的是 `npx.ps1`，`Start-Process -FilePath npx --version` 实测直接失败，报 `Access is denied`。
+  即使它能启动，也仍会沿用和 `npx.cmd` 相同的“长 JSON argv”链路，因此并不能从根上解决 completion 的 `206` 问题。
+- `notify = ["claude-code-notify"]` 也不行。
+  这台机器上的 Codex 在拉起 `legacy_notify` 时没有解析到该命令名，`codex-tui.log` 已明确出现：
+  `program not found`
+- `notify = ["claude-code-notify.cmd"]` 可以解决“命令找不到”这一层，但仍不是最终解。
+  改成显式 `.cmd` 后，Codex 已经能拉起 notify；但 completion 的长 JSON payload 仍会在 Windows `.cmd` 参数链上失败。
+  最新 `codex-tui.log` 已明确出现：
+  `The filename or extension is too long. (os error 206)`
+  这说明 `.cmd` 只修复了 command resolution，没有修复长参数传递。
+- 因此，裸命令名和 `npx*` 这两类无路径配置，在这台机器上都不能作为稳定结论写进用户文档。
+- `.cmd` 也不能作为稳定最终方案写进用户文档；它更适合作为一次性的定位实验，用来证明“Codex 能找到命令，但 `.cmd` 链路仍会被长 payload 打爆”。
+- `wscript.exe + %LOCALAPPDATA%\\claude-code-notify\\codex-notify-wrapper.vbs` 能工作，但它要求用户在 `config.toml` 中写绝对路径；从“像一个正常 npm 包一样无感使用”的目标看，这只是临时绕行，不是可接受的最终形态。
 
 **当前更符合这个约束的 Windows completion 兜底方案：**
 
@@ -67,6 +84,8 @@ Claude Code 的 hook 习惯是把 JSON 通过 stdin 传进来；Codex 旧版 `no
 - 这个 wrapper 仍然调用已安装的 `claude-code-notify` 包入口
 - 它只把 payload 先放进 `CLAUDE_CODE_NOTIFY_PAYLOAD` 环境变量，再调用 shim，
   从而绕开 `.cmd %*` 对原始 JSON 的再次展开风险
+- 运行时先尝试 `claude-code-notify.cmd`；若当前进程环境里找不到这个 shim，
+  再退回 `npx.cmd @erica_s/claude-code-notify`
 - 之所以优先选 VBS 而不是 PowerShell wrapper，是因为 PowerShell 自己也会再做一层参数解析，
   在包含大量双引号的 JSON payload 场景下不够稳；`wscript.exe` 这一层更接近“原样收到 argv，再转交环境变量”
 - 实测上，改完 `~/.codex/config.toml` 的 `notify` 后，需要重启 Codex 并在新的 TUI session 里复测；
