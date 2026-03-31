@@ -1,3 +1,5 @@
+## Deprecated. This package has moved to `@erica-s/ai-agent-notify`.
+
 # claude-code-notify
 
 Windows Toast notifications for Claude Code and Codex.

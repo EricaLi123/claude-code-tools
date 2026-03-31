@@ -1,7 +1,7 @@
 {
   "name": "@erica_s/claude-code-notify",
-  "version": "2.1.5",
-  "description": "Windows Toast notifications for Claude Code and Codex",
+  "version": "2.1.6",
+  "description": "Deprecated. This package has moved to @erica-s/ai-agent-notify",
   "bin": {
     "claude-code-notify": "bin/cli.js"
   },

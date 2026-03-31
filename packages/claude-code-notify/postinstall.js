@@ -1,5 +1,9 @@
 #!/usr/bin/env node
 
+console.warn(
+  "claude-code-notify is deprecated. Install @erica-s/ai-agent-notify and use the ai-agent-notify command instead."
+);
+
 if (process.platform !== "win32") {
   process.exit(0);
 }
