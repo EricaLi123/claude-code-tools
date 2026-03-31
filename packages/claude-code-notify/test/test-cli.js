@@ -145,15 +145,6 @@ test("cli.js resolves hwnd, shell pid, and spawns watcher through launcher", () 
   assert(cliContent.includes("WatcherPidFile"));
 });
 
-test("cli.js includes codex watcher mode", () => {
-  assert(cliContent.includes("codex-watch"));
-  assert(cliContent.includes('"app-server"'));
-  assert(cliContent.includes("thread/status/changed"));
-  assert(cliContent.includes("waitingOnApproval"));
-  assert(cliContent.includes("thread/list"));
-  assert(!cliContent.includes("Codex Needs Approval"));
-});
-
 test("cli.js includes codex session watcher mode", () => {
   assert(cliContent.includes("codex-session-watch"));
   assert(cliContent.includes("exec_approval_request"));
@@ -163,6 +154,8 @@ test("cli.js includes codex session watcher mode", () => {
   assert(cliContent.includes('ToolCall: shell_command '));
   assert(cliContent.includes('"sandbox_permissions":"require_escalated"'));
   assert(!cliContent.includes("apply_patch_outside_workspace"));
+  assert(!cliContent.includes("codex-watch"));
+  assert(!cliContent.includes("waitingOnApproval"));
   assert(cliContent.includes("sessionsDir"));
   assert(cliContent.includes('acquireSingleInstanceLock("codex-session-watch"'));
   assert(cliContent.includes("start-hidden.vbs"));
@@ -1118,13 +1111,6 @@ test("notification source normalizer respects explicit source title and message"
   assert(normalized.message === "Waiting in CI");
 });
 
-test("cli.js resolves Windows codex shims before spawning", () => {
-  assert(cliContent.includes("resolveCodexLaunch"));
-  assert(cliContent.includes("where.exe"));
-  assert(cliContent.includes('process.env.ComSpec || "cmd.exe"'));
-  assert(cliContent.includes('".cmd"'));
-});
-
 test("notify.ps1 uses native toast + flash", () => {
   assert(notifyContent.includes("ToastNotificationManager"));
   assert(notifyContent.includes("FlashWindowEx"));
@@ -1180,14 +1166,6 @@ test("watcher resets through console attachment plus standard streams", () => {
   assert(!watcherContent.includes("SendKeys"));
 });
 
-test("README documents codex watcher usage", () => {
-  const readmeContent = read("README.md");
-  assert(readmeContent.includes("codex-watch"));
-  assert(readmeContent.includes("waitingOnApproval"));
-  assert(readmeContent.includes("Scoped / Advanced"));
-  assert(readmeContent.includes("protocol debugging"));
-});
-
 test("README documents codex session watcher usage", () => {
   const readmeContent = read("README.md");
   assert(readmeContent.includes("codex-session-watch"));
@@ -1196,6 +1174,7 @@ test("README documents codex session watcher usage", () => {
   assert(readmeContent.includes("approval reminders"));
   assert(readmeContent.includes("false positives"));
   assert(readmeContent.includes(DEV_DOCS_URL));
+  assert(!readmeContent.includes("codex-watch"));
 });
 
 test("README documents direct Codex notify support and limitation", () => {

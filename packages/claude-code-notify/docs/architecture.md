@@ -7,7 +7,6 @@
 - 默认入口 `claude-code-notify` 同时收口 Claude hook stdin、Codex legacy notify argv 和 wrapper 注入的 env payload。
 - completion 继续走 `notify` 直达，不走 sidecar 这条链。
 - approval 由 `codex-session-watch` 识别，`codex-mcp-sidecar` 只补启动期 terminal context；两者职责故意分开。
-- `codex-watch` / app-server 模式保留为窄范围集成与协议调试，不作为无感默认方案。
 
 ## 架构
 
@@ -52,7 +51,6 @@ Claude Code 的 hook 习惯是把 JSON 通过 stdin 传进来；Codex 旧版 `no
 | `codex-mcp-sidecar` | session 启动时机、继承的 `cwd`、本机父进程链、可自行探测的 `hwnd` / `shellPid` | 启动瞬间的官方 `sessionId`、`threadId`、`turnId`、approval 事件、官方 tab id | approval 场景的启动期终端线索、兜底拉起 watcher |
 | Codex legacy `notify` | 一次性 completion payload，常见场景下的 `thread-id` / `turn-id` / `cwd`，以及它触发当场可直接探测到的终端上下文 | approval 请求 | 完成类通知 + completion 当场定位 |
 | `codex-session-watch` | rollout `sessionId`、approval event、`cwd`、TUI 里的早期 approval 线索 | 启动当场的终端句柄、原始 tab 句柄 | approval 检测 + 提醒触发 |
-| `codex-watch` / app-server | `threadId`、`turnId`、approval request payload、command preview、可选 `cwd` | 启动时所在的本机 terminal/tab、`hwnd` | 协议级 approval 语义 |
 
 ### 当前项目里的真实数据流
 

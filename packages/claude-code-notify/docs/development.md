@@ -35,7 +35,6 @@ Approval:
 
 - completion 不走 sidecar 这条链；它只依赖 `notify` 触发当场的 terminal context。
 - approval 的“检测”和“定位”故意分开：watcher 负责看到 approval，sidecar 负责补回原始 terminal / tab 身份。
-- `codex-watch` 保留为 app-server scoped 的高级/调试模式，不是默认的日常 approval 主路径。
 
 ## 文档导航
 

@@ -156,39 +156,7 @@ Practical notes:
 claude-code-notify --help
 claude-code-notify codex-session-watch
 claude-code-notify codex-mcp-sidecar
-claude-code-notify codex-watch
 ```
-
-## Codex App-Server Watcher (Scoped / Advanced)
-
-Start a long-running watcher that launches the official `codex app-server`
-and sends a notification whenever a Codex thread enters
-`waitingOnApproval`:
-
-```bash
-claude-code-notify codex-watch
-```
-
-By default, `codex-watch` only watches threads whose cwd matches the current
-directory. To watch every interactive Codex thread instead:
-
-```bash
-claude-code-notify codex-watch --all-cwds
-```
-
-Optional flags:
-
-- `--cwd <path>`: watch a specific project directory
-- `--codex-bin <path>`: override the Codex executable
-- `--shell-pid <pid>`: keep the existing manual shell PID override behavior
-
-This mode is kept for app-server-scoped workflows and protocol debugging. In
-this project's end-to-end validation, a watcher that launched its own
-`codex app-server` did not behave as a global observer for approval requests
-originating in other Codex sessions. For stock Codex CLI usage, prefer
-`codex-session-watch`.
-
-For protocol details and internal flow, see [`docs/development.md`](https://github.com/EricaLi123/claude-code-tools/blob/main/packages/claude-code-notify/docs/development.md).
 
 ## Requirements
 

@@ -69,11 +69,6 @@ function ensureWindows() {
 async function main() {
   const argv = process.argv.slice(2);
 
-  if (argv[0] === "codex" || argv[0] === "codex-watch" || argv[0] === "--codex-watch") {
-    await runCodexWatchMode(argv[0] === "--codex-watch" ? argv.slice(1) : argv.slice(1));
-    return;
-  }
-
   if (argv[0] === "codex-session-watch" || argv[0] === "--codex-session-watch") {
     await runCodexSessionWatchMode(
       argv[0] === "--codex-session-watch" ? argv.slice(1) : argv.slice(1)
@@ -99,21 +94,16 @@ function printHelp() {
     [
       "Usage:",
       "  claude-code-notify",
-      "  claude-code-notify codex-watch [--all-cwds] [--cwd <path>] [--codex-bin <path>]",
       "  claude-code-notify codex-session-watch [--sessions-dir <path>] [--tui-log <path>] [--poll-ms <ms>]",
       "  claude-code-notify codex-mcp-sidecar",
       "",
       "Modes:",
       "  default      Read notification JSON from stdin or argv and show a notification",
-      "  codex-watch  Start the official `codex app-server` and notify when a thread enters waitingOnApproval",
       "  codex-session-watch  Watch local Codex rollout files and TUI logs for approval events",
       "  codex-mcp-sidecar  Run a minimal MCP sidecar that records Codex terminal/session hints and ensures codex-session-watch is running",
       "",
       "Flags:",
       "  --shell-pid <pid>  Override the detected shell pid",
-      "  --all-cwds         Watch Codex threads from every cwd instead of only the current cwd",
-      "  --cwd <path>       Filter Codex threads to a specific cwd",
-      "  --codex-bin <bin>  Override the Codex executable path",
       "  --sessions-dir <path>  Override the Codex sessions directory (default: %USERPROFILE%\\.codex\\sessions)",
       "  --tui-log <path>   Override the Codex TUI log path (default: %USERPROFILE%\\.codex\\log\\codex-tui.log)",
       "  --poll-ms <ms>     Poll interval for session file scanning (default: 1000)",
@@ -157,259 +147,6 @@ async function runDefaultNotifyMode(argv) {
     runtime.log(`spawn failed: ${error.message}`);
     process.exit(0);
   });
-}
-
-async function runCodexWatchMode(argv) {
-  if (argv[0] === "--help" || argv[0] === "help") {
-    printHelp();
-    return;
-  }
-
-  const watchCwd = getArgValue(argv, "--cwd") || process.cwd();
-  const watchAllCwds = hasFlag(argv, "--all-cwds");
-  const codexBin =
-    getArgValue(argv, "--codex-bin") ||
-    getEnvFirst(["TOAST_NOTIFY_CODEX_BIN"]) ||
-    "codex";
-
-  const runtime = createRuntime(`codex-watch-${Date.now()}`);
-  const terminal = detectTerminalContext(argv, runtime.log);
-  const approvalState = new Map();
-  const threadProjectDirs = new Map();
-  const pendingRequests = new Map();
-
-  let requestCounter = 0;
-  let bootstrapSent = false;
-  let initializeObserved = false;
-
-  runtime.log(
-    `started mode=codex-watch cwd=${watchCwd} watchAllCwds=${watchAllCwds ? "1" : "0"} codexBin=${codexBin}`
-  );
-
-  const codexLaunch = resolveCodexLaunch(codexBin, runtime.log);
-  runtime.log(
-    `resolved codex launcher command=${codexLaunch.command} args=${safeStringify(codexLaunch.args)}`
-  );
-
-  const codex = spawn(codexLaunch.command, codexLaunch.args, {
-    stdio: ["pipe", "pipe", "inherit"],
-    env: process.env,
-    windowsVerbatimArguments: codexLaunch.windowsVerbatimArguments === true,
-  });
-
-  codex.on("error", (error) => {
-    runtime.log(`codex app-server spawn failed: ${error.message}`);
-    process.exit(1);
-  });
-
-  codex.on("close", (code, signal) => {
-    runtime.log(`codex app-server exited code=${code} signal=${signal || ""}`.trim());
-    process.exit(code || 0);
-  });
-
-  const reader = readline.createInterface({
-    input: codex.stdout,
-    crlfDelay: Infinity,
-  });
-
-  reader.on("line", (line) => {
-    if (!line.trim()) {
-      return;
-    }
-
-    let message;
-    try {
-      message = JSON.parse(line);
-    } catch (error) {
-      runtime.log(`failed to parse app-server line: ${error.message}`);
-      return;
-    }
-
-    handleServerMessage(message);
-  });
-
-  sendRequest("initialize", {
-    clientInfo: {
-      name: "claude-code-notify",
-      title: "claude-code-notify",
-      version: PACKAGE_VERSION,
-    },
-    capabilities: null,
-  });
-
-  setTimeout(() => {
-    if (!initializeObserved) {
-      runtime.log("initialize response not observed; continuing optimistically");
-      sendInitializedAndBootstrap();
-    }
-  }, 500);
-
-  function handleServerMessage(message) {
-    if (Object.prototype.hasOwnProperty.call(message, "id")) {
-      handleResponse(message);
-      return;
-    }
-
-    if (!message || typeof message.method !== "string") {
-      runtime.log("ignored app-server message without method");
-      return;
-    }
-
-    switch (message.method) {
-      case "thread/started":
-        if (message.params && message.params.thread) {
-          rememberThread(message.params.thread);
-        }
-        return;
-      case "thread/status/changed":
-        if (message.params && message.params.threadId) {
-          updateApprovalState(message.params.threadId, message.params.status);
-        }
-        return;
-      case "thread/closed":
-      case "thread/archived":
-        if (message.params && message.params.threadId) {
-          approvalState.delete(message.params.threadId);
-          threadProjectDirs.delete(message.params.threadId);
-        }
-        return;
-      default:
-        return;
-    }
-  }
-
-  function handleResponse(message) {
-    const requestId = String(message.id);
-    const pending = pendingRequests.get(requestId);
-
-    if (!pending) {
-      return;
-    }
-
-    pendingRequests.delete(requestId);
-
-    if (message.error) {
-      runtime.log(
-        `request failed method=${pending.method} id=${requestId} error=${safeStringify(message.error)}`
-      );
-      if (pending.method === "initialize") {
-        process.exit(1);
-      }
-      return;
-    }
-
-    if (pending.method === "initialize") {
-      initializeObserved = true;
-      sendInitializedAndBootstrap();
-      return;
-    }
-
-    const result = Object.prototype.hasOwnProperty.call(message, "result")
-      ? message.result
-      : null;
-
-    if (pending.method === "thread/list" && result && Array.isArray(result.data)) {
-      result.data.forEach(rememberThread);
-      if (result.nextCursor) {
-        requestThreadList(result.nextCursor);
-      }
-    }
-  }
-
-  function sendInitializedAndBootstrap() {
-    if (bootstrapSent) {
-      return;
-    }
-
-    bootstrapSent = true;
-    sendNotification({ method: "initialized" });
-    requestThreadList(null);
-  }
-
-  function requestThreadList(cursor) {
-    const params = {
-      archived: false,
-      sortKey: "updated_at",
-      limit: 100,
-    };
-
-    if (cursor) {
-      params.cursor = cursor;
-    }
-
-    if (!watchAllCwds) {
-      params.cwd = watchCwd;
-    }
-
-    sendRequest("thread/list", params);
-  }
-
-  function rememberThread(thread) {
-    if (!thread || !thread.id) {
-      return;
-    }
-
-    if (thread.cwd) {
-      threadProjectDirs.set(thread.id, thread.cwd);
-    }
-
-    updateApprovalState(thread.id, thread.status);
-  }
-
-  function updateApprovalState(threadId, status) {
-    const waiting = isWaitingOnApproval(status);
-    const previous = approvalState.get(threadId) === true;
-
-    if (waiting) {
-      approvalState.set(threadId, true);
-      if (!previous) {
-        const projectDir = threadProjectDirs.get(threadId) || watchCwd;
-        const notification = createNotificationSpec({
-          sourceId: "codex-app-server",
-          eventName: "PermissionRequest",
-          projectDir,
-        });
-        runtime.log(`approval requested threadId=${threadId} cwd=${projectDir}`);
-        const child = emitNotification({
-          source: notification.source,
-          eventName: notification.eventName,
-          title: notification.title,
-          message: notification.message,
-          rawEventType: "waitingOnApproval",
-          runtime,
-          terminal,
-        });
-        child.on("close", (code) => {
-          runtime.log(`notify.ps1 exited code=${code} threadId=${threadId}`);
-        });
-        child.on("error", (error) => {
-          runtime.log(`notify.ps1 spawn failed threadId=${threadId} error=${error.message}`);
-        });
-      }
-      return;
-    }
-
-    if (previous) {
-      runtime.log(`approval cleared threadId=${threadId}`);
-    }
-
-    approvalState.delete(threadId);
-  }
-
-  function sendRequest(method, params) {
-    const id = `req-${++requestCounter}`;
-    pendingRequests.set(id, { method });
-    sendMessage({ id, method, params });
-  }
-
-  function sendNotification(message) {
-    sendMessage(message);
-  }
-
-  function sendMessage(message) {
-    runtime.log(`app-server <= ${message.method}${message.id ? ` id=${message.id}` : ""}`);
-    codex.stdin.write(`${JSON.stringify(message)}\n`);
-  }
 }
 
 async function runCodexSessionWatchMode(argv) {
@@ -1037,10 +774,6 @@ function getArgValue(argv, name) {
   return index >= 0 && index + 1 < argv.length ? argv[index + 1] : "";
 }
 
-function hasFlag(argv, name) {
-  return argv.includes(name);
-}
-
 function getEnvFirst(names) {
   for (const name of names) {
     const value = process.env[name];
@@ -1261,136 +994,6 @@ function getExplicitShellPid(argv) {
     "";
   const pid = parseInt(raw, 10);
   return Number.isInteger(pid) && pid > 0 ? pid : null;
-}
-
-function resolveCodexLaunch(rawCommand, log) {
-  const resolved = resolveWindowsCommand(rawCommand, log);
-  const ext = resolved ? path.extname(resolved).toLowerCase() : "";
-
-  if (ext === ".cmd" || ext === ".bat") {
-    return {
-      command: process.env.ComSpec || "cmd.exe",
-      args: ["/d", "/s", "/c", `"${resolved}" app-server`],
-      windowsVerbatimArguments: true,
-    };
-  }
-
-  return {
-    command: resolved || rawCommand,
-    args: ["app-server"],
-    windowsVerbatimArguments: false,
-  };
-}
-
-function resolveWindowsCommand(rawCommand, log) {
-  if (!rawCommand) {
-    return "";
-  }
-
-  const explicit = resolveExplicitCommandPath(rawCommand);
-  if (explicit) {
-    return explicit;
-  }
-
-  const whereMatches = findCommandWithWhere(rawCommand, log);
-  if (whereMatches.length > 0) {
-    return whereMatches[0];
-  }
-
-  const fallbackMatches = getFallbackCommandCandidates(rawCommand).filter((candidate) =>
-    fileExistsCaseInsensitive(candidate)
-  );
-  if (fallbackMatches.length > 0) {
-    return sortCommandCandidates(fallbackMatches)[0];
-  }
-
-  return rawCommand;
-}
-
-function resolveExplicitCommandPath(rawCommand) {
-  const looksLikePath =
-    rawCommand.includes("\\") ||
-    rawCommand.includes("/") ||
-    /^[A-Za-z]:/.test(rawCommand);
-
-  if (!looksLikePath) {
-    return "";
-  }
-
-  const candidates = expandCommandCandidates(rawCommand);
-  const match = candidates.find((candidate) => fileExistsCaseInsensitive(candidate));
-  return match || "";
-}
-
-function findCommandWithWhere(rawCommand, log) {
-  const result = spawnSync("where.exe", [rawCommand], {
-    encoding: "utf8",
-    env: process.env,
-  });
-
-  if (result.error) {
-    log(`where.exe failed for ${rawCommand}: ${result.error.message}`);
-    return [];
-  }
-
-  return sortCommandCandidates(
-    (result.stdout || "")
-      .split(/\r?\n/)
-      .map((line) => line.trim())
-      .filter(Boolean)
-      .filter((candidate) => fileExistsCaseInsensitive(candidate))
-  );
-}
-
-function getFallbackCommandCandidates(rawCommand) {
-  const baseName = path.basename(rawCommand);
-  const localAppData = process.env.LOCALAPPDATA || "";
-  const appData = process.env.APPDATA || "";
-
-  return sortCommandCandidates(
-    [
-      path.join(localAppData, "Volta", "bin", baseName),
-      path.join(appData, "npm", baseName),
-      ...expandCommandCandidates(path.join(localAppData, "Volta", "bin", baseName)),
-      ...expandCommandCandidates(path.join(appData, "npm", baseName)),
-    ].filter(Boolean)
-  );
-}
-
-function expandCommandCandidates(commandPath) {
-  const ext = path.extname(commandPath);
-  if (ext) {
-    return [commandPath];
-  }
-
-  return [commandPath, `${commandPath}.exe`, `${commandPath}.cmd`, `${commandPath}.bat`];
-}
-
-function sortCommandCandidates(candidates) {
-  const unique = Array.from(new Set(candidates.map((candidate) => path.normalize(candidate))));
-  const extPriority = {
-    ".exe": 0,
-    ".cmd": 1,
-    ".bat": 2,
-    "": 3,
-  };
-
-  return unique.sort((left, right) => {
-    const leftExt = path.extname(left).toLowerCase();
-    const rightExt = path.extname(right).toLowerCase();
-    const leftRank = Object.prototype.hasOwnProperty.call(extPriority, leftExt)
-      ? extPriority[leftExt]
-      : 9;
-    const rightRank = Object.prototype.hasOwnProperty.call(extPriority, rightExt)
-      ? extPriority[rightExt]
-      : 9;
-
-    if (leftRank !== rightRank) {
-      return leftRank - rightRank;
-    }
-
-    return left.localeCompare(right);
-  });
 }
 
 function fileExistsCaseInsensitive(targetPath) {
@@ -3452,15 +3055,6 @@ function startTabColorWatcher({ eventName, runtime, terminal }) {
   } catch (error) {
     runtime.log(`tab-color-watcher spawn failed: ${error.message}`);
   }
-}
-
-function isWaitingOnApproval(status) {
-  return (
-    status &&
-    status.type === "active" &&
-    Array.isArray(status.activeFlags) &&
-    status.activeFlags.includes("waitingOnApproval")
-  );
 }
 
 function writeChildStderr(result, log) {
