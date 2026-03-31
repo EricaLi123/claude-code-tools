@@ -581,6 +581,28 @@ test("approved PowerShell command rules suppress prefix_rule-based require_escal
   );
 });
 
+test("approved command rules do not suppress write require_escalated shell commands", () => {
+  const rules = cli.parseApprovedCommandRules(
+    'prefix_rule(pattern=["C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe", "-Command", "git add -- README.md test/test-cli.js; git commit -m \\"Trim README to user-facing setup\\""], decision="allow")'
+  );
+
+  assert(rules.length === 1, "expected one parsed approved rule");
+  assert(
+    cli.getCodexRequireEscalatedSuppressionReason({
+      event: {
+        eventType: "require_escalated_tool_call",
+        toolArgs: {
+          command: 'git add -- README.md test/test-cli.js; git commit -m "Trim README to user-facing setup"',
+          prefix_rule: ["git", "commit"],
+        },
+      },
+      approvalPolicy: "",
+      sandboxPolicy: null,
+      approvedCommandRules: rules,
+    }) === ""
+  );
+});
+
 test("extractCommandApprovalRoots normalizes absolute file, directory, and inline node script roots", () => {
   const packageRoot = normalizeTestPath(ROOT);
   const binDir = normalizeTestPath(path.join(ROOT, "bin"));
@@ -1119,6 +1141,8 @@ test("codex wrapper forwards payload through env and then calls the installed sh
   assert(codexWrapperContent.includes("CLAUDE_CODE_NOTIFY_PAYLOAD"));
   assert(codexWrapperContent.includes("claude-code-notify.cmd"));
   assert(codexWrapperContent.includes('%ComSpec%'));
+  assert(codexWrapperContent.includes("exitCode = 9009"));
+  assert(codexWrapperContent.includes("npx.cmd @erica_s/claude-code-notify"));
   assert(codexWrapperContent.includes("shell.Run"));
 });
 

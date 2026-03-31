@@ -2338,7 +2338,10 @@ function getCodexRequireEscalatedSuppressionReason({
     return "danger_full_access";
   }
 
-  if (matchesApprovedCommandRule(event.toolArgs, approvedCommandRules)) {
+  if (
+    isLikelyReadOnlyShellCommand(event.toolArgs) &&
+    matchesApprovedCommandRule(event.toolArgs, approvedCommandRules)
+  ) {
     return "approved_rule";
   }
 
