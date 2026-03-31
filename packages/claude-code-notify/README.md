@@ -127,31 +127,14 @@ If you configured `codex-mcp-sidecar`, you usually do **not** need to start
 this manually. The first Codex session in the current Windows login will
 auto-start it in the background.
 
-If you want it running before the first Codex session starts, or you are not
-using the MCP sidecar, enable Windows logon autostart once:
-
-```bash
-claude-code-notify autostart enable
-```
-
-Useful companion commands:
-
-```bash
-claude-code-notify autostart status
-claude-code-notify autostart disable
-```
+If you are not using the MCP sidecar, start `codex-session-watch` yourself in a
+separate terminal before opening the Codex session you want to observe.
 
 Optional flags:
 
 - `--sessions-dir <path>`: override the Codex sessions directory
 - `--tui-log <path>`: override the Codex TUI log path
 - `--poll-ms <ms>`: change the polling interval
-
-You can also persist watcher flags into autostart itself:
-
-```bash
-claude-code-notify autostart enable --poll-ms 2000
-```
 
 Practical notes:
 
@@ -171,8 +154,6 @@ Practical notes:
 
 ```bash
 claude-code-notify --help
-claude-code-notify autostart enable
-claude-code-notify autostart status
 claude-code-notify codex-session-watch
 claude-code-notify codex-mcp-sidecar
 claude-code-notify codex-watch

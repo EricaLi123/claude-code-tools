@@ -69,11 +69,6 @@ function ensureWindows() {
 async function main() {
   const argv = process.argv.slice(2);
 
-  if (argv[0] === "autostart" || argv[0] === "--autostart") {
-    await runAutostartMode(argv[0] === "--autostart" ? argv.slice(1) : argv.slice(1));
-    return;
-  }
-
   if (argv[0] === "codex" || argv[0] === "codex-watch" || argv[0] === "--codex-watch") {
     await runCodexWatchMode(argv[0] === "--codex-watch" ? argv.slice(1) : argv.slice(1));
     return;
@@ -104,14 +99,12 @@ function printHelp() {
     [
       "Usage:",
       "  claude-code-notify",
-      "  claude-code-notify autostart [status|enable|disable] [codex-session-watch flags...]",
       "  claude-code-notify codex-watch [--all-cwds] [--cwd <path>] [--codex-bin <path>]",
       "  claude-code-notify codex-session-watch [--sessions-dir <path>] [--tui-log <path>] [--poll-ms <ms>]",
       "  claude-code-notify codex-mcp-sidecar",
       "",
       "Modes:",
       "  default      Read notification JSON from stdin or argv and show a notification",
-      "  autostart    Manage Windows logon autostart for codex-session-watch",
       "  codex-watch  Start the official `codex app-server` and notify when a thread enters waitingOnApproval",
       "  codex-session-watch  Watch local Codex rollout files and TUI logs for approval events",
       "  codex-mcp-sidecar  Run a minimal MCP sidecar that records Codex terminal/session hints and ensures codex-session-watch is running",
@@ -127,31 +120,6 @@ function printHelp() {
       "",
     ].join(os.EOL)
   );
-}
-
-async function runAutostartMode(argv) {
-  if (argv[0] === "--help" || argv[0] === "help") {
-    printHelp();
-    return;
-  }
-
-  const action = argv[0] || "status";
-  if (action === "status") {
-    printCodexSessionWatchAutostartStatus();
-    return;
-  }
-
-  if (action === "enable") {
-    enableCodexSessionWatchAutostart(argv.slice(1));
-    return;
-  }
-
-  if (action === "disable") {
-    disableCodexSessionWatchAutostart();
-    return;
-  }
-
-  throw new Error(`unknown autostart action: ${action}`);
 }
 
 async function runDefaultNotifyMode(argv) {
@@ -1089,110 +1057,6 @@ function parsePositiveInteger(rawValue, fallbackValue) {
   return Number.isInteger(parsed) && parsed > 0 ? parsed : fallbackValue;
 }
 
-function printCodexSessionWatchAutostartStatus() {
-  const registration = queryCodexSessionWatchAutostartRegistration();
-
-  if (!registration) {
-    process.stdout.write("codex-session-watch autostart: disabled" + os.EOL);
-    return;
-  }
-
-  process.stdout.write("codex-session-watch autostart: enabled" + os.EOL);
-  process.stdout.write(`Run key: ${registration.key}` + os.EOL);
-  process.stdout.write(`Value: ${registration.valueName}` + os.EOL);
-  process.stdout.write(`Command: ${registration.command}` + os.EOL);
-}
-
-function enableCodexSessionWatchAutostart(watcherArgs) {
-  const command = buildCodexSessionWatchAutostartCommand(watcherArgs);
-  const result = spawnSync(
-    "reg.exe",
-    [
-      "add",
-      getCurrentUserRunKey(),
-      "/v",
-      getCodexSessionWatchAutostartValueName(),
-      "/t",
-      "REG_SZ",
-      "/d",
-      command,
-      "/f",
-    ],
-    { encoding: "utf8", windowsHide: true }
-  );
-
-  if (result.error || result.status !== 0) {
-    throw new Error(`failed to enable autostart: ${getChildProcessFailure(result)}`);
-  }
-
-  process.stdout.write("Enabled codex-session-watch autostart." + os.EOL);
-  if (watcherArgs.length > 0) {
-    process.stdout.write(`Watcher args: ${watcherArgs.join(" ")}` + os.EOL);
-  }
-}
-
-function disableCodexSessionWatchAutostart() {
-  const existing = queryCodexSessionWatchAutostartRegistration();
-  if (!existing) {
-    process.stdout.write("codex-session-watch autostart: already disabled" + os.EOL);
-    return;
-  }
-
-  const result = spawnSync(
-    "reg.exe",
-    ["delete", getCurrentUserRunKey(), "/v", getCodexSessionWatchAutostartValueName(), "/f"],
-    { encoding: "utf8", windowsHide: true }
-  );
-
-  if (result.error || result.status !== 0) {
-    throw new Error(`failed to disable autostart: ${getChildProcessFailure(result)}`);
-  }
-
-  process.stdout.write("Disabled codex-session-watch autostart." + os.EOL);
-}
-
-function queryCodexSessionWatchAutostartRegistration() {
-  const result = spawnSync(
-    "reg.exe",
-    ["query", getCurrentUserRunKey(), "/v", getCodexSessionWatchAutostartValueName()],
-    { encoding: "utf8", windowsHide: true }
-  );
-
-  if (result.error || result.status !== 0) {
-    return null;
-  }
-
-  const line = (result.stdout || "")
-    .split(/\r?\n/)
-    .map((entry) => entry.trim())
-    .find((entry) => entry.startsWith(getCodexSessionWatchAutostartValueName()));
-
-  if (!line) {
-    return null;
-  }
-
-  const match = line.match(/^[^\s]+\s+REG_\w+\s+(.*)$/);
-  if (!match) {
-    return null;
-  }
-
-  return {
-    key: getCurrentUserRunKey(),
-    valueName: getCodexSessionWatchAutostartValueName(),
-    command: match[1].trim(),
-  };
-}
-
-function buildCodexSessionWatchAutostartCommand(watcherArgs) {
-  const wscriptPath = getWindowsScriptHostPath();
-  const launcherScript = getHiddenLauncherScriptPath();
-  const launchArgs = buildCodexSessionWatchLaunchArgs(watcherArgs);
-
-  return [wscriptPath, launcherScript, ...launchArgs]
-    .map((arg) => quoteWindowsCommandArg(arg))
-    .join(" ");
-}
-
 function ensureCodexSessionWatchRunning(log) {
   const state = querySingleInstanceLock("codex-session-watch");
   if (state.running) {
@@ -1270,23 +1134,6 @@ function getWindowsScriptHostPath() {
 
 function getHiddenLauncherScriptPath() {
   return path.join(__dirname, "..", "scripts", "start-hidden.vbs");
-}
-
-function getCurrentUserRunKey() {
-  return "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run";
-}
-
-function getCodexSessionWatchAutostartValueName() {
-  return "claude-code-notify-codex-session-watch";
-}
-
-function quoteWindowsCommandArg(value) {
-  const text = String(value);
-  if (!text) {
-    return '""';
-  }
-
-  return `"${text.replace(/(\\*)"/g, "$1$1\\\"").replace(/(\\+)$/g, "$1$1")}"`;
 }
 
 function acquireSingleInstanceLock(lockName, log) {
@@ -3636,34 +3483,11 @@ function safeStringify(value) {
   }
 }
 
-function getChildProcessFailure(result) {
-  if (!result) {
-    return "unknown child process failure";
-  }
-
-  if (result.error && result.error.message) {
-    return result.error.message;
-  }
-
-  const stderr = typeof result.stderr === "string" ? result.stderr.trim() : "";
-  if (stderr) {
-    return stderr;
-  }
-
-  const stdout = typeof result.stdout === "string" ? result.stdout.trim() : "";
-  if (stdout) {
-    return stdout;
-  }
-
-  return `exit code ${result.status}`;
-}
-
 module.exports = {
   buildCodexSessionEvent,
   buildCodexTuiApprovalEvent,
   buildApprovalDedupeKey,
   buildPendingApprovalBatchKey,
-  buildCodexSessionWatchAutostartCommand,
   cancelPendingApprovalNotificationsBySuppression,
   confirmSessionApprovalForRecentEvents,
   drainPendingApprovalBatch,

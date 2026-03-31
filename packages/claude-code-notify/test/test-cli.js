@@ -156,7 +156,6 @@ test("cli.js includes codex watcher mode", () => {
 
 test("cli.js includes codex session watcher mode", () => {
   assert(cliContent.includes("codex-session-watch"));
-  assert(cliContent.includes("autostart"));
   assert(cliContent.includes("exec_approval_request"));
   assert(cliContent.includes("request_permissions"));
   assert(cliContent.includes("apply_patch_approval_request"));
@@ -178,14 +177,6 @@ test("cli.js includes codex mcp sidecar mode", () => {
   assert(cliContent.includes('case "tools/list"'));
   assert(cliContent.includes('case "resources/list"'));
   assert(cliContent.includes('case "prompts/list"'));
-});
-
-test("autostart command builder targets hidden vbs launcher", () => {
-  const command = cli.buildCodexSessionWatchAutostartCommand(["--poll-ms", "2000"]);
-  assert(command.includes("start-hidden.vbs"));
-  assert(command.includes("codex-session-watch"));
-  assert(command.includes("--poll-ms"));
-  assert(command.includes("2000"));
 });
 
 test("sidecar candidate picker prefers the closest unambiguous rollout", () => {
@@ -1167,6 +1158,7 @@ test("postinstall installs the codex wrapper into LOCALAPPDATA", () => {
 test("start-hidden.vbs runs argv command hidden", () => {
   assert(startHiddenContent.includes("shell.Run command, 0, False"));
   assert(startHiddenContent.includes("WScript.Arguments.Count"));
+  assert(startHiddenContent.includes("background watcher"));
 });
 
 test("codex wrapper forwards payload through env and then calls the installed shim", () => {
@@ -1200,8 +1192,6 @@ test("README documents codex session watcher usage", () => {
   const readmeContent = read("README.md");
   assert(readmeContent.includes("codex-session-watch"));
   assert(readmeContent.includes("auto-start it in the background"));
-  assert(readmeContent.includes("autostart enable"));
-  assert(readmeContent.includes("autostart status"));
   assert(readmeContent.includes("codex-tui.log"));
   assert(readmeContent.includes("approval reminders"));
   assert(readmeContent.includes("false positives"));
@@ -1357,16 +1347,6 @@ if (!canSpawnChildren) {
       assert(output.includes("--tui-log"));
     });
 
-    test("cli.js prints help for autostart", () => {
-      const output = execFileSync("node", [path.join(ROOT, "bin", "cli.js"), "autostart", "--help"], {
-        timeout: 15000,
-        encoding: "utf8",
-        stdio: ["pipe", "pipe", "pipe"],
-      });
-      assert(output.includes("autostart"));
-      assert(output.includes("codex-session-watch"));
-      assert(output.includes("enable"));
-    });
   } else {
     console.log("  SKIP  Windows-only smoke checks");
   }

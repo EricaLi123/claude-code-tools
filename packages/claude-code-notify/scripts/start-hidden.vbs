@@ -1,5 +1,5 @@
 ' Launch any command passed as argv with a hidden window.
-' Used for logon autostart so codex-session-watch does not need a visible console.
+' Used when claude-code-notify needs to start a background watcher without a visible console.
 
 Dim shell, command, index
 
