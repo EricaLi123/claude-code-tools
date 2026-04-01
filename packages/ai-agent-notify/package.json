@@ -1,6 +1,6 @@
 {
   "name": "@erica-s/ai-agent-notify",
-  "version": "2.1.5",
+  "version": "2.1.6",
   "description": "Windows Toast notifications for Claude Code and Codex",
   "bin": {
     "ai-agent-notify": "bin/cli.js"
