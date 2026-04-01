@@ -1,5 +1,11 @@
 # Windows Terminal Tab Color Development History
 
+## 留档目的
+
+- 记录 Windows Terminal tab 高亮为什么最后会变成现在这套方案。
+- 记录哪些看起来更“官方”或更简单的路线已经被真实机器验证否决。
+- 避免以后再次回到会污染输入、会误清颜色、或启动链不稳定的旧方案。
+
 ## 背景
 
 这个通知工具需要在 Windows Terminal 多 Tab 场景下，既能提醒用户“有一个会话需要关注”，又能让用户在回到终端时快速定位到对应的 Tab。

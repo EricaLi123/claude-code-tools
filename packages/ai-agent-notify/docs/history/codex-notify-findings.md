@@ -2,6 +2,12 @@
 
 这一页只收纳带日期、带机器环境前提、或明显偏排障视角的结论。当前生效的架构与实现，请回到 [`../architecture.md`](../architecture.md)、[`../codex-approval.md`](../codex-approval.md) 和 [`../windows-runtime.md`](../windows-runtime.md)。
 
+## 留档目的
+
+- 解释为什么今天的 public guidance 和内部配置路线会是现在这样。
+- 记录已经踩过的 Windows / Codex 组合坑，避免以后把独立问题重新混成一团。
+- 给后续改配置、改 wrapper、改 approval 路线的人一个最短回溯入口。
+
 ## 先看当前结论
 
 | 主题 | 当前判断 | 活跃文档 |
@@ -105,7 +111,7 @@ startup_timeout_sec = 30
 - 2026-03-31: completion 侧确认“Windows launcher / argv 链不稳定”，同时发现“超长会话会放大 `os error 206`”
 - 2026-04-01: 进一步拆出“direct process launch 需要显式 `.cmd`”这一独立问题；同一天本机重新验证时 `npx.cmd` 路线恢复可用
 
-## 当前默认含义
+## 这页对开发的意义
 
 - `codex-approval.md` 负责定义“现在怎么配”
 - `windows-runtime.md` 负责解释 Windows 直接起进程、wrapper 和 tab 高亮等运行时约束

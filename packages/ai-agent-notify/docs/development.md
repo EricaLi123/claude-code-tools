@@ -1,66 +1,44 @@
 # 开发说明
 
-README 只保留安装、配置、常用命令和面向使用者的限制说明；内部实现、信号来源、误报抑制、定位链路和设计取舍统一记录在这里。
+这一页只说明“开发时如何维护文档”。当前方案本身请从 [仓库 README](../README.md)、[文档总览](./README.md) 和 [开发原则](./principles.md) 进入，不在这里重复展开。
 
-## 文档目标
+## 这套文档要解决什么
 
-- 记录根本需求和长期约束，用来指导开发方向，而不是只记录一时可用的配置。
-- 记录遇到过的问题、尝试过的方案、最终结果和原因，避免后续重复踩坑。
-- 记录当前采用方案及其取舍，让后续调整时能回到当时的决策背景。
+- 把根本需求、长期方向和当前方案分开，避免临时 workaround 反过来污染主设计。
+- 把问题、试错、结果和原因单独留档，避免未来再次走回已经验证失败的路线。
+- 让用户文档保持最小配置；让开发文档保留真正影响维护和演进的背景。
 
-## 当前结论
+## 更新规则
 
-- completion 通知继续走顶层 `notify` 直达；approval 仍然是单独链路。
-- `codex-session-watch` 负责 approval 检测，`codex-mcp-sidecar` 负责启动期 terminal 线索与 watcher 兜底拉起。
-- README 暂时继续只推荐 `npx.cmd` public config；Codex 的 Windows 配置路线与取舍统一记录在 [`codex-approval.md`](./codex-approval.md) 和 [`windows-runtime.md`](./windows-runtime.md)。
-- Windows 平台实现细节、wrapper 行为和 tab 高亮实现单独记录在 [`windows-runtime.md`](./windows-runtime.md)。
-- 带日期、带机器环境前提、带排障过程的材料统一归档到 [`history/`](./history/)。
+- 改代码、改默认路线、改文档分工前，先读 [`principles.md`](./principles.md)。
+- `README` 只保留安装、配置、常用命令和面向使用者的限制说明。
+- 根本需求、长期边界、官方能力约束：写到 [`architecture.md`](./architecture.md)。
+- 当前仍生效的方案、配置和设计原因：写到 [`codex-approval.md`](./codex-approval.md) 或 [`windows-runtime.md`](./windows-runtime.md)。
+- 带日期、带机器环境前提、排障过程、被否决的方案：写到 [`history/`](./history/)。
+- 面向使用者的安装、最小配置、当前限制：只写到 [`../README.md`](../README.md)。
 
-## 文档分工
+## 变更时的落文档顺序
 
-- [`architecture.md`](./architecture.md)：记录根本需求、总体架构、职责边界和长期约束。
-- [`codex-approval.md`](./codex-approval.md)：记录 approval 这条线当前采用的设计、配置和原因。
-- [`windows-runtime.md`](./windows-runtime.md)：记录 Windows 运行时约束、兼容性方案和实现取舍。
-- [`history/`](./history/)：记录问题、排障过程、采用过的方案、结果和原因，重点是避免重复踩坑。
+1. 先判断这次改动属于“需求 / 当前方案 / 历史问题”的哪一类。
+2. 先确认这次改动有没有碰到 [`principles.md`](./principles.md) 里的硬约束。
+3. 如果用户配置或默认 public guidance 变了，先更新 [`../README.md`](../README.md)。
+4. 如果当前仍生效的设计变了，再更新对应的活跃设计文档。
+5. 如果这次改动来自真实排障、试错或环境特例，再补到 [`history/`](./history/)。
 
-## 架构速览
+## 历史文档的写法
 
-```text
-Completion:
-  Claude hook / Codex legacy notify
-    → bin/cli.js
-      → detectTerminalContext()
-      → notify.ps1
-      → Windows Terminal tab watcher (when applicable)
+历史文档不只是记录“发生了什么”，还要尽量回答这四件事：
 
-Approval:
-  Codex session start
-    → codex-mcp-sidecar
-      → record startup terminal context
-      → ensure codex-session-watch is running
-  Later approval event
-    → codex-session-watch
-      → read rollout / codex-tui.log
-      → optionally reuse sidecar terminal mapping
-      → notify.ps1
-```
+- 遇到过什么问题
+- 试过什么方案
+- 最终采用或放弃了什么
+- 为什么这样取舍
 
-## 提醒 + 定位的职责拆分
+## 当前入口
 
-- completion 不走 sidecar 这条链；它只依赖 `notify` 触发当场的 terminal context。
-- approval 的“检测”和“定位”故意分开：watcher 负责看到 approval，sidecar 负责补回原始 terminal / tab 身份。
-
-## 文档导航
-
-### 活跃设计文档
-
+- [文档总览](./README.md)
+- [开发原则](./principles.md)
 - [架构与职责边界](./architecture.md)
 - [Codex approval 检测与定位](./codex-approval.md)
 - [Windows 运行时与通知实现](./windows-runtime.md)
-
-### 历史与实测归档
-
-- [`history/`](./history/)
-- [Codex notify 实测结论](./history/codex-notify-findings.md)
-- [2026-03-18 app-server approval 验证](./history/codex-approval-notification-session-2026-03-18.md)
-- [Windows Terminal Tab 颜色演进](./history/tab-color-history.md)
+- [历史与实测归档](./history/README.md)

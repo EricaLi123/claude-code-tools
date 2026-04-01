@@ -8,6 +8,23 @@ Repo:
 Package:
 - `D:\Git\claude-code-tools\packages\claude-code-notify`
 
+## 为什么保留这页
+
+这页保留的价值，不是因为里面的实现后来成了主路线，而是因为它把 `app-server` 路线为什么没成为默认方案说明白了：
+
+- 如果想靠 `app-server` 拿到 approval 事件，用户通常就不能只是“配一次，然后继续直接用官方 `codex`”，而是必须包一层宿主 / 包装器
+- 如果不包这层，只是独立拉起一个 `codex app-server` watcher，它又不能全局观察其他 Codex 会话里的 approval
+
+也正因为这两点，后续默认主路线才转向 `codex-session-watch`。
+
+## 先看结论
+
+- 当时试的是“基于官方 `app-server` 做 approval watcher”。
+- 代码实现本身是成功的，协议也确实能看到 `waitingOnApproval`。
+- 但这条线不满足“配置一次，此后无感继续直接用官方 `codex`”这个根本需求，因为默认要想稳定拿到事件，就必须把 Codex 包进额外一层。
+- 同时，本次验证也证明：如果不包这层，只是独立启动 watcher，它只能看到自己启动的那条 app-server 连接，看不到别的 Codex 会话。
+- 所以这条路被验证为“不适合作为默认全局 approval 路线”。
+
 ## Goal
 
 Implement a local-only way for `@erica_s/claude-code-notify` to notify when Codex is waiting for approval, while continuing to use the official Codex package and explicitly avoiding:

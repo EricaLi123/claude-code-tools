@@ -7,10 +7,15 @@
 - 最终采用了什么方案
 - 为什么这样取舍
 
-活跃设计结论请回到 [`../development.md`](../development.md) 或同级 `docs/` 下的专题文档。
+活跃设计结论请回到 [文档总览](../README.md) 或同级 `docs/` 下的专题文档。
 
 ## 当前归档
 
-- [Codex notify 实测结论](./codex-notify-findings.md)
+### 路线验证
+
 - [2026-03-18 app-server approval 验证](./codex-approval-notification-session-2026-03-18.md)
+
+### Windows / Codex 排障与实现演进
+
+- [Codex notify 实测结论](./codex-notify-findings.md)
 - [Windows Terminal Tab 颜色演进](./tab-color-history.md)

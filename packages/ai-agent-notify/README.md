@@ -61,6 +61,10 @@ startup_timeout_sec = 30
 - **Windows 10:** `Open` may not work due to OS limitations
 - **macOS / Linux:** not supported
 
+## Documentation
+
+- Design and development docs: [`docs/README.md`](./docs/README.md)
+
 ## License
 
 MIT
