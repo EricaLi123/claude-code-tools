@@ -103,7 +103,7 @@ console.log("\n--- File structure ---");
   "docs/codex-approval.md",
   "docs/windows-runtime.md",
   "docs/history/README.md",
-  "docs/history/codex-notify-findings.md",
+  "docs/history/codex-completion-findings.md",
   "docs/history/codex-approval-notification-session-2026-03-18.md",
   "docs/history/tab-color-history.md",
 ].forEach((relPath) => {
@@ -1221,7 +1221,7 @@ test("README stays user-focused while internal docs remain split by topic", () =
   const architectureContent = read("docs/architecture.md");
   const approvalContent = read("docs/codex-approval.md");
   const windowsRuntimeContent = read("docs/windows-runtime.md");
-  const historyContent = read("docs/history/codex-notify-findings.md");
+  const historyContent = read("docs/history/codex-completion-findings.md");
   assert(!readmeContent.includes("Reminder + Localization Responsibilities"));
   assert(!readmeContent.includes("npm link"));
   assert(!readmeContent.includes("node postinstall.js"));

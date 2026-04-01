@@ -17,5 +17,5 @@
 
 ### Windows / Codex 排障与实现演进
 
-- [Codex notify 实测结论](./codex-notify-findings.md)
+- [Codex completion 实测结论](./codex-completion-findings.md)
 - [Windows Terminal Tab 颜色演进](./tab-color-history.md)

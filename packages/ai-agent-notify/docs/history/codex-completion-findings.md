@@ -1,4 +1,4 @@
-# Codex Notify 实测结论
+# Codex Completion 实测结论
 
 这一页只收纳带日期、带机器环境前提、或明显偏排障视角的结论。当前生效的架构与实现，请回到 [`../architecture.md`](../architecture.md)、[`../codex-approval.md`](../codex-approval.md) 和 [`../windows-runtime.md`](../windows-runtime.md)。
 
