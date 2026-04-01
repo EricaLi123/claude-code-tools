@@ -11,7 +11,7 @@ $ErrorActionPreference = 'Stop'
 
 # --- 日志 ---
 function Write-Log($msg) {
-    $line = "[$(Get-Date -Format 'yyyy-MM-ddTHH:mm:ss.fffZ')] [watcher pid=$PID] $msg"
+    $line = "[$((Get-Date).ToString('o'))] [watcher pid=$PID] $msg"
     if ($env:TOAST_NOTIFY_LOG_FILE) {
         try { [System.IO.File]::AppendAllText($env:TOAST_NOTIFY_LOG_FILE, "$line`n") } catch {}
     }

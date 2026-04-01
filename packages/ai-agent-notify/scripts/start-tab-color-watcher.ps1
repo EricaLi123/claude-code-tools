@@ -9,7 +9,7 @@ $ErrorActionPreference = 'Stop'
 
 function Write-Log($msg) {
     if (-not $env:TOAST_NOTIFY_LOG_FILE) { return }
-    $line = "[$(Get-Date -Format 'yyyy-MM-ddTHH:mm:ss.fffZ')] [watcher-launcher pid=$PID] $msg"
+    $line = "[$((Get-Date).ToString('o'))] [watcher-launcher pid=$PID] $msg"
     try { [System.IO.File]::AppendAllText($env:TOAST_NOTIFY_LOG_FILE, "$line`n") } catch {}
 }
 

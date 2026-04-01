@@ -7,7 +7,7 @@
 # log 路径由 cli.js 计算并传入
 $LogFile = $env:TOAST_NOTIFY_LOG_FILE
 function Write-Log($msg) {
-    $line = "[$(Get-Date -Format 'yyyy-MM-ddTHH:mm:ss.fff')] [ps1 pid=$PID] $msg"
+    $line = "[$((Get-Date).ToString('o'))] [ps1 pid=$PID] $msg"
     [Console]::Error.WriteLine($line)
     try { Add-Content -LiteralPath $LogFile -Value $line -Encoding UTF8 } catch {}
 }
