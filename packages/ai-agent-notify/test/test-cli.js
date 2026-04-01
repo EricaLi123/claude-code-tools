@@ -1175,10 +1175,11 @@ test("README documents codex session watcher usage", () => {
 test("README documents direct Codex notify support and limitation", () => {
   const readmeContent = read("README.md");
   assert(readmeContent.includes("agent-turn-complete"));
-  assert(readmeContent.includes('notify = ["ai-agent-notify"]'));
+  assert(readmeContent.includes('notify = ["npx.cmd", "@erica-s/ai-agent-notify"]'));
   assert(readmeContent.includes("Recommended `~/.codex/config.toml`:"));
-  assert(readmeContent.includes("less reliable on Windows"));
-  assert(!readmeContent.includes("March 31, 2026"));
+  assert(readmeContent.includes("startup_timeout_sec = 30"));
+  assert(readmeContent.includes("April 1, 2026"));
+  assert(readmeContent.includes("auto-updates"));
   assert(!readmeContent.includes("AI_AGENT_NOTIFY_PAYLOAD"));
 });
 
@@ -1187,9 +1188,9 @@ test("README documents the codex mcp sidecar companion", () => {
   assert(readmeContent.includes("codex-mcp-sidecar"));
   assert(readmeContent.includes("codex-mcp-sidecar"));
   assert(readmeContent.includes("[mcp_servers.ai_agent_notify_sidecar]"));
-  assert(readmeContent.includes('command = "cmd.exe"'));
+  assert(readmeContent.includes('command = "npx.cmd"'));
   assert(
-    readmeContent.includes('args = ["/d", "/c", "ai-agent-notify", "codex-mcp-sidecar"]')
+    readmeContent.includes('args = ["@erica-s/ai-agent-notify", "codex-mcp-sidecar"]')
   );
   assert(readmeContent.includes("Do **not** set `cwd`"));
 });

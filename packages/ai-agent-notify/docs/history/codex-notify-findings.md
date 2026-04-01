@@ -2,6 +2,32 @@
 
 这一页只收纳带日期、带机器环境前提、或明显偏排障视角的结论。当前生效的架构与实现，请回到 [`../architecture.md`](../architecture.md)、[`../codex-approval.md`](../codex-approval.md) 和 [`../windows-runtime.md`](../windows-runtime.md)。
 
+## 2026-04-01: 当前本机的 `npx` 路线恢复正常，但原因未定位
+
+### 现象
+
+本机当前重新验证后，下面这组配置已经能正常工作：
+
+- `notify = ["npx.cmd", "@erica-s/ai-agent-notify"]`
+- `[mcp_servers.ai_agent_notify_sidecar]`
+  - `command = "npx.cmd"`
+  - `args = ["@erica-s/ai-agent-notify", "codex-mcp-sidecar"]`
+  - `startup_timeout_sec = 30`
+
+当前观察里，completion notify、sidecar 启动、以及后续窗口 / tab 定位增强都没有再出现之前那批 `npx` 问题。
+
+### 结论
+
+- 当前 README 重新把 `npx` 作为默认 public guidance。
+- 主要原因不是“它一定比全局安装更稳定”，而是它能自动拿到最新发布版本，日常使用成本更低。
+- 但这次恢复正常的根因暂时没有定位清楚，所以它仍然只是一条“当前本机可用”的结论，不等于把 2026-03-31 的历史问题从根上推翻了。
+
+### 当前影响
+
+- 当前 public config 默认写 `npx.cmd @erica-s/ai-agent-notify`。
+- sidecar 的 `startup_timeout_sec` 同步放宽到 `30`，给 `npx` 额外启动链留余量。
+- 如果别的机器再次出现 `os error 206`、Toast-only 退化、或 sidecar 启动超时，优先回退到全局安装直启方案再继续排查。
+
 ## 2026-03-31: Windows completion notify 启动链并不跨机器稳定
 
 ### 现象

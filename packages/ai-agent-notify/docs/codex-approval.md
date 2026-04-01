@@ -127,8 +127,9 @@ approval 主判断仍然是 rollout 优先，因为它同时满足三件事：
 ```text
 ~/.codex/config.toml
   → [mcp_servers.ai_agent_notify_sidecar]
-       command = "ai-agent-notify"
-       args = ["codex-mcp-sidecar"]
+       command = "npx.cmd"
+       args = ["@erica-s/ai-agent-notify", "codex-mcp-sidecar"]
+       startup_timeout_sec = 30
   → Codex 启动 session 时自动拉起 sidecar
       ├─ 若全局 watcher 未运行则隐藏拉起一份
       ├─ 继承 Codex 当时的真实项目目录

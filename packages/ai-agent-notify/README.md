@@ -24,8 +24,11 @@ solves two core problems:
 
 ## Install
 
+The configs below use `npx.cmd` so they can pick up the latest published
+package automatically. If you want a fixed local binary instead, install it
+globally:
+
 ```bash
-# Recommended: global install via volta or npm
 volta install @erica-s/ai-agent-notify
 # or
 npm install -g @erica-s/ai-agent-notify
@@ -38,14 +41,16 @@ Add to your `~/.claude/settings.json`:
 ```json
 {
     "hooks": {
-        "Stop": [{ "hooks": [{ "type": "command", "command": "ai-agent-notify", "async": true }] }],
-        "PermissionRequest": [{ "hooks": [{ "type": "command", "command": "ai-agent-notify", "async": true }] }]
+        "Stop": [{ "hooks": [{ "type": "command", "command": "npx.cmd @erica-s/ai-agent-notify", "async": true }] }],
+        "PermissionRequest": [{ "hooks": [{ "type": "command", "command": "npx.cmd @erica-s/ai-agent-notify", "async": true }] }]
     }
 }
 ```
 
-- Prefer a global install. `npx --yes @erica-s/ai-agent-notify` is less
-  reliable in async hooks.
+- This is the current recommended path because it auto-updates with the latest
+  published package.
+- If `npx` startup or first-run download latency becomes a problem on your
+  machine, switch the hook command to `ai-agent-notify` after a global install.
 - The click-to-activate protocol is registered automatically on install.
 
 ## Codex
@@ -53,28 +58,33 @@ Add to your `~/.claude/settings.json`:
 Recommended `~/.codex/config.toml`:
 
 ```toml
-notify = ["ai-agent-notify"]
+notify = ["npx.cmd", "@erica-s/ai-agent-notify"]
 
 [mcp_servers.ai_agent_notify_sidecar]
-command = "cmd.exe"
-args = ["/d", "/c", "ai-agent-notify", "codex-mcp-sidecar"]
+command = "npx.cmd"
+args = ["@erica-s/ai-agent-notify", "codex-mcp-sidecar"]
 required = false
-startup_timeout_sec = 5
+startup_timeout_sec = 30
 ```
 
-- `notify = ["ai-agent-notify"]` covers completion events such as
+- `notify = ["npx.cmd", "@erica-s/ai-agent-notify"]` covers completion events such as
   `agent-turn-complete`.
+- `startup_timeout_sec = 30` leaves headroom for the extra `npx` startup hop.
+- Current local Windows validation on April 1, 2026 shows this `npx` route
+  working again for completion notify and sidecar startup.
+- The reason it currently works again, compared with older machine-specific
+  failures, is still unknown. If your machine regresses, switch back to a
+  globally installed `ai-agent-notify`.
 - `codex-session-watch` is the main path for approval reminders.
 - `codex-mcp-sidecar` will usually auto-start `codex-session-watch`.
 - Do **not** set `cwd` on the MCP server entry above.
 - After changing Codex `notify`, restart Codex and retest in a fresh TUI
   session.
-- Prefer a global install. `npx.cmd @erica-s/ai-agent-notify` is less reliable on Windows.
 
 If you are not using the MCP sidecar, start the watcher yourself:
 
 ```bash
-ai-agent-notify codex-session-watch
+npx.cmd @erica-s/ai-agent-notify codex-session-watch
 ```
 
 Optional flags:
