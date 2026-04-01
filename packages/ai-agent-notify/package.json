@@ -32,7 +32,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/EricaLi123/ai-tools.git",
+    "url": "git+https://github.com/EricaLi123/ai-tools.git",
     "directory": "packages/ai-agent-notify"
   },
   "engines": {
