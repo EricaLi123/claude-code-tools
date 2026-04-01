@@ -8,6 +8,8 @@ const fs = require("fs");
 const path = require("path");
 
 const ROOT = path.join(__dirname, "..");
+const TEST_PROJECT_DIR = "D:\\repo\\sample-project";
+const TEST_PACKAGE_DIR = `${TEST_PROJECT_DIR}\\packages\\ai-agent-notify`;
 const cli = require(path.join(ROOT, "bin", "cli.js"));
 const { normalizeIncomingNotification } = require(path.join(ROOT, "lib", "notification-sources.js"));
 const sidecarState = require(path.join(ROOT, "lib", "codex-sidecar-state.js"));
@@ -90,7 +92,7 @@ console.log("\n--- File structure ---");
   "postinstall.js",
   "scripts/find-hwnd.ps1",
   "scripts/get-shell-pid.ps1",
-  "scripts/codex-notify-wrapper.vbs",
+  "scripts/ai-agent-notify-codex-wrapper.vbs",
   "scripts/notify.ps1",
   "scripts/register-protocol.ps1",
   "scripts/start-hidden.vbs",
@@ -129,7 +131,7 @@ console.log("\n--- Content checks ---");
 
 const cliContent = read("bin/cli.js");
 const notifyContent = read("scripts/notify.ps1");
-const codexWrapperContent = read("scripts/codex-notify-wrapper.vbs");
+const codexWrapperContent = read("scripts/ai-agent-notify-codex-wrapper.vbs");
 const postinstallContent = read("postinstall.js");
 const startHiddenContent = read("scripts/start-hidden.vbs");
 const watcherContent = read("scripts/tab-color-watcher.ps1");
@@ -314,7 +316,7 @@ test("sidecar state lookup returns exact session mappings after sidecar exit", (
       recordId,
       pid: 999999,
       parentPid: process.ppid,
-      cwd: "D:\\XAGIT\\claude-code-tools",
+      cwd: TEST_PROJECT_DIR,
       sessionId,
       startedAt: new Date().toISOString(),
       resolvedAt: new Date().toISOString(),
@@ -343,7 +345,7 @@ test("sidecar prune keeps fresh resolved records even when the sidecar pid is go
       recordId,
       pid: 999999,
       parentPid: process.ppid,
-      cwd: "D:\\XAGIT\\claude-code-tools",
+      cwd: TEST_PROJECT_DIR,
       sessionId,
       startedAt: new Date().toISOString(),
       resolvedAt: new Date().toISOString(),
@@ -374,7 +376,7 @@ test("sidecar prune keeps older exact session records for long-lived sessions", 
       recordId,
       pid: 999999,
       parentPid: process.ppid,
-      cwd: "D:\\XAGIT\\claude-code-tools",
+      cwd: TEST_PROJECT_DIR,
       sessionId,
       startedAt: oldIso,
       resolvedAt: oldIso,
@@ -412,7 +414,7 @@ test("sidecar exact session matches refresh persisted record freshness", () => {
       recordId,
       pid: 999999,
       parentPid: process.ppid,
-      cwd: "D:\\XAGIT\\claude-code-tools",
+      cwd: TEST_PROJECT_DIR,
       sessionId,
       startedAt: oldIso,
       resolvedAt: oldIso,
@@ -990,7 +992,7 @@ test("session watcher recognizes explicit apply_patch approval events from rollo
         turn_id: "turn-4",
         call_id: "call-4",
         approval_id: "approval-4",
-        cwd: "D:\\XAGIT\\claude-code-tools\\packages\\ai-agent-notify",
+        cwd: TEST_PACKAGE_DIR,
       },
     }
   );
@@ -1055,7 +1057,7 @@ test("notification source normalizer recognizes Codex legacy notify argv payload
         type: "agent-turn-complete",
         "thread-id": "thread-123",
         "turn-id": "turn-123",
-        cwd: "D:\\XAGIT\\claude-code-tools",
+        cwd: TEST_PROJECT_DIR,
         client: "codex-tui",
         "input-messages": ["Ping"],
         "last-assistant-message": "Pong",
@@ -1072,7 +1074,7 @@ test("notification source normalizer recognizes Codex legacy notify argv payload
   assert(normalized.message === "Task finished");
   assert(normalized.sessionId === "thread-123");
   assert(normalized.turnId === "turn-123");
-  assert(normalized.projectDir === "D:\\XAGIT\\claude-code-tools");
+  assert(normalized.projectDir === TEST_PROJECT_DIR);
 });
 
 test("notification source normalizer recognizes wrapper env payloads", () => {
@@ -1084,7 +1086,7 @@ test("notification source normalizer recognizes wrapper env payloads", () => {
         type: "agent-turn-complete",
         "thread-id": "thread-env-1",
         "turn-id": "turn-env-1",
-        cwd: "D:\\XAGIT\\claude-code-tools",
+        cwd: TEST_PROJECT_DIR,
         client: "codex-tui",
       }),
     },
@@ -1138,8 +1140,8 @@ test("postinstall registers protocol", () => {
 });
 
 test("postinstall installs the codex wrapper into LOCALAPPDATA", () => {
-  assert(postinstallContent.includes("installCodexNotifyWrapper"));
-  assert(postinstallContent.includes("codex-notify-wrapper.vbs"));
+  assert(postinstallContent.includes("installCodexWrapper"));
+  assert(postinstallContent.includes("ai-agent-notify-codex-wrapper.vbs"));
   assert(postinstallContent.includes("LOCALAPPDATA"));
 });
 
@@ -1228,7 +1230,7 @@ test("README stays user-focused while internal docs remain split by topic", () =
   assert(developmentContent.includes("./codex-approval.md"));
   assert(developmentContent.includes("./windows-runtime.md"));
   assert(developmentContent.includes("./history/"));
-  assert(!readmeContent.includes("codex-notify-wrapper.vbs"));
+  assert(!readmeContent.includes("ai-agent-notify-codex-wrapper.vbs"));
   assert(!developmentContent.includes("AI_AGENT_NOTIFY_PAYLOAD"));
   assert(architectureContent.includes("提醒 + 定位的职责拆分"));
   assert(architectureContent.includes("通道能力矩阵"));
@@ -1310,7 +1312,7 @@ if (!canSpawnChildren) {
             type: "agent-turn-complete",
             "thread-id": "thread-smoke-1",
             "turn-id": "turn-smoke-1",
-            cwd: "D:\\XAGIT\\claude-code-tools",
+            cwd: TEST_PROJECT_DIR,
             client: "codex-tui",
             "input-messages": ["Ping"],
             "last-assistant-message": "Pong",

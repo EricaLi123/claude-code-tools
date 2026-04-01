@@ -34,20 +34,20 @@ for (const task of tasks) {
 }
 
 try {
-  installCodexNotifyWrapper();
+  installCodexWrapper();
 } catch {
   console.warn("ai-agent-notify: Codex wrapper install skipped (non-fatal)");
 }
 
-function installCodexNotifyWrapper() {
+function installCodexWrapper() {
   const localAppData = process.env.LOCALAPPDATA;
   if (!localAppData) {
     throw new Error("LOCALAPPDATA is not set");
   }
 
   const targetDir = path.join(localAppData, "ai-agent-notify");
-  const sourcePath = path.join(__dirname, "scripts", "codex-notify-wrapper.vbs");
-  const targetPath = path.join(targetDir, "codex-notify-wrapper.vbs");
+  const sourcePath = path.join(__dirname, "scripts", "ai-agent-notify-codex-wrapper.vbs");
+  const targetPath = path.join(targetDir, "ai-agent-notify-codex-wrapper.vbs");
 
   fs.mkdirSync(targetDir, { recursive: true });
   fs.copyFileSync(sourcePath, targetPath);
