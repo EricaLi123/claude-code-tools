@@ -13,7 +13,7 @@
 
 ### 路线验证
 
-- [2026-03-18 app-server approval 验证](./codex-approval-notification-session-2026-03-18.md)
+- [2026-03-18 legacy repo app-server approval 验证](./legacy-repo-codex-approval-notification-session-2026-03-18.md)
 
 ### Windows / Codex 排障与实现演进
 

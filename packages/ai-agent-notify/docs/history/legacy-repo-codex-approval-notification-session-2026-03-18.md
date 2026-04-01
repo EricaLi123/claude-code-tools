@@ -2,6 +2,10 @@
 
 Date: 2026-03-18
 
+Note: this page records the investigation when the repo and package still used
+the old `claude-code-tools` / `claude-code-notify` names. The paths and command
+names below are preserved as historical context.
+
 Repo:
 - `D:\Git\claude-code-tools`
 

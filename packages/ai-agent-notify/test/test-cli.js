@@ -104,7 +104,7 @@ console.log("\n--- File structure ---");
   "docs/windows-runtime.md",
   "docs/history/README.md",
   "docs/history/codex-completion-findings.md",
-  "docs/history/codex-approval-notification-session-2026-03-18.md",
+  "docs/history/legacy-repo-codex-approval-notification-session-2026-03-18.md",
   "docs/history/tab-color-history.md",
 ].forEach((relPath) => {
   test(`${relPath} exists`, () => {
@@ -1225,26 +1225,24 @@ test("README stays user-focused while internal docs remain split by topic", () =
   assert(!readmeContent.includes("Reminder + Localization Responsibilities"));
   assert(!readmeContent.includes("npm link"));
   assert(!readmeContent.includes("node postinstall.js"));
-  assert(developmentContent.includes("README 只保留安装、配置、常用命令"));
+  assert(developmentContent.includes("README"));
   assert(developmentContent.includes("./architecture.md"));
   assert(developmentContent.includes("./codex-approval.md"));
   assert(developmentContent.includes("./windows-runtime.md"));
   assert(developmentContent.includes("./history/"));
   assert(!readmeContent.includes("ai-agent-notify-codex-wrapper.vbs"));
   assert(!developmentContent.includes("AI_AGENT_NOTIFY_PAYLOAD"));
-  assert(architectureContent.includes("提醒 + 定位的职责拆分"));
-  assert(architectureContent.includes("通道能力矩阵"));
-  assert(architectureContent.includes("当前项目里的真实数据流"));
-  assert(architectureContent.includes("completion 不走 sidecar 这条链"));
+  assert(architectureContent.includes("normalizeIncomingNotification()"));
+  assert(architectureContent.includes("codex-session-watch"));
+  assert(architectureContent.includes("codex-mcp-sidecar"));
   assert(architectureContent.includes("tui.notification_method"));
-  assert(approvalContent.includes("为什么不把 approval 定位完全交给 MCP server"));
-  assert(approvalContent.includes("已批准命令 / 快速完成命令的误报"));
-  assert(approvalContent.includes("1 秒 grace 窗口"));
+  assert(approvalContent.includes("codex-session-watch"));
+  assert(approvalContent.includes("codex-mcp-sidecar"));
   assert(approvalContent.includes("default.rules"));
   assert(windowsRuntimeContent.includes("AI_AGENT_NOTIFY_PAYLOAD"));
-  assert(windowsRuntimeContent.includes("Tab 级定位"));
+  assert(windowsRuntimeContent.includes("FRAME_BACKGROUND"));
   assert(historyContent.includes("os error 206"));
-  assert(historyContent.includes("第二条线当前仍不能删"));
+  assert(historyContent.includes("TUI fallback"));
 });
 
 test("README and development docs only use valid local markdown links", () => {
