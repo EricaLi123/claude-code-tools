@@ -152,9 +152,9 @@ approval 主判断仍然是 rollout 优先，因为它同时满足三件事：
 
 ### Windows 配置路线
 
-当前保留两条 Windows 配置路线。这里只定义“当前怎么配”；配置路线为什么演进成现在这样，见 [`history/codex-completion-findings.md`](./history/codex-completion-findings.md)。
+当前 Windows 上保留两条配置路线，但 README 公开默认推荐第一条。这里只定义“当前怎么配”；配置路线为什么演进成现在这样，见 [`history/codex-completion-findings.md`](./history/codex-completion-findings.md)。
 
-#### 1. 全局安装后直配命令
+#### 1. 推荐：全局安装后直配命令
 
 先安装包：
 
@@ -177,9 +177,10 @@ startup_timeout_sec = 30
 ```
 
 - 这条线适合想去掉 `npx` 启动链、把入口固定为本机已安装命令的场景。
+- 这是当前 README 公开推荐的路径：入口固定在本机已安装版本，能避免 `npx` 自动升级后 CLI 行为和项目文档 / 配置结论不同步。
 - Windows 上这里显式写 `.cmd`，不要写成 `ai-agent-notify`；原因见 [`windows-runtime.md`](./windows-runtime.md)。
 
-#### 2. 直接配置成 `npx`
+#### 2. 可选备用：直接配置成 `npx`
 
 不做全局安装，配置里直接写 `npx.cmd`：
 
@@ -193,7 +194,7 @@ required = false
 startup_timeout_sec = 30
 ```
 
-- 这条线是 README 当前继续公开推荐的路径，因为它更容易自动跟上已发布版本。
+- 这条线只适合临时免安装、快速试包或主动跟随最新已发布版本；不再作为 README 默认 public guidance。
 - `npx` 在 Windows 上也显式写 `npx.cmd`，不要依赖 `npx` / `npx.ps1` 的命中差异。
 
 ```text

@@ -1182,11 +1182,16 @@ test("README documents codex session watcher usage", () => {
 
 test("README documents direct Codex notify support and limitation", () => {
   const readmeContent = read("README.md");
-  assert(readmeContent.includes('notify = ["npx.cmd", "@erica-s/ai-agent-notify"]'));
-  assert(readmeContent.includes("Recommended `~/.codex/config.toml`:"));
+  assert(readmeContent.includes('notify = ["ai-agent-notify.cmd"]'));
+  assert(readmeContent.includes("`~/.codex/config.toml`:"));
   assert(readmeContent.includes("covers completion notifications"));
   assert(readmeContent.includes("startup_timeout_sec = 30"));
-  assert(readmeContent.includes("latest published package automatically"));
+  assert(
+    readmeContent.includes(
+      "Use `ai-agent-notify.cmd` for Windows direct process launch entries such as"
+    )
+  );
+  assert(!readmeContent.includes("npx"));
   assert(!readmeContent.includes("April 1, 2026"));
   assert(!readmeContent.includes("AI_AGENT_NOTIFY_PAYLOAD"));
 });
@@ -1196,23 +1201,31 @@ test("README documents the codex mcp sidecar companion", () => {
   assert(readmeContent.includes("codex-mcp-sidecar"));
   assert(readmeContent.includes("codex-mcp-sidecar"));
   assert(readmeContent.includes("[mcp_servers.ai_agent_notify_sidecar]"));
-  assert(readmeContent.includes('command = "npx.cmd"'));
-  assert(
-    readmeContent.includes('args = ["@erica-s/ai-agent-notify", "codex-mcp-sidecar"]')
-  );
+  assert(readmeContent.includes('command = "ai-agent-notify.cmd"'));
+  assert(readmeContent.includes('args = ["codex-mcp-sidecar"]'));
   assert(readmeContent.includes("Do **not** set `cwd`"));
 });
 
 test("README stays focused on quick setup", () => {
   const readmeContent = read("README.md");
   assert(!readmeContent.includes("## Problem It Solves"));
-  assert(!readmeContent.includes("## Install"));
-  assert(!readmeContent.includes("volta install"));
-  assert(!readmeContent.includes("npm install -g"));
+  assert(readmeContent.includes("## Install"));
+  assert(readmeContent.includes("volta install"));
+  assert(readmeContent.includes("npm install -g"));
   assert(readmeContent.includes("## Claude Code"));
   assert(readmeContent.includes("## Codex"));
   assert(readmeContent.includes("Stop"));
   assert(readmeContent.includes("PermissionRequest"));
+});
+
+test("active docs recommend the installed command path over npx", () => {
+  const docsIndexContent = read("docs/README.md");
+  const approvalContent = read("docs/codex-approval.md");
+  assert(docsIndexContent.includes("ai-agent-notify.cmd"));
+  assert(!docsIndexContent.includes("公开推荐 `npx.cmd @erica-s/ai-agent-notify`"));
+  assert(approvalContent.includes("#### 1. 推荐：全局安装后直配命令"));
+  assert(approvalContent.includes('notify = ["ai-agent-notify.cmd"]'));
+  assert(approvalContent.includes("不再作为 README 默认 public guidance"));
 });
 
 test("README stays user-focused while internal docs remain split by topic", () => {

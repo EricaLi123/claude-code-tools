@@ -14,7 +14,7 @@
 
 - completion 通知继续走顶层 `notify` 直达。
 - approval 通知继续走 `codex-session-watch + codex-mcp-sidecar`。
-- README 当前继续公开推荐 `npx.cmd @erica-s/ai-agent-notify`。
+- README 当前公开推荐“先安装包，再用 `ai-agent-notify.cmd` 直配命令”。
 - Windows 下如果配置项属于 direct process launch，命令名显式写 `.cmd`。
 
 ## 阅读顺序

@@ -5,6 +5,17 @@ Windows Toast notifications for Claude Code and Codex.
 Get notified when Claude or Codex finishes a task, or when Codex requests
 approval.
 
+## Install
+
+```bash
+volta install @erica-s/ai-agent-notify
+# or
+npm install -g @erica-s/ai-agent-notify
+```
+
+Use `ai-agent-notify.cmd` for Windows direct process launch entries such as
+Codex `notify` and MCP `command`.
+
 ## Claude Code
 
 Add to your `~/.claude/settings.json`:
@@ -12,8 +23,8 @@ Add to your `~/.claude/settings.json`:
 ```json
 {
     "hooks": {
-        "Stop": [{ "hooks": [{ "type": "command", "command": "npx.cmd @erica-s/ai-agent-notify", "async": true }] }],
-        "PermissionRequest": [{ "hooks": [{ "type": "command", "command": "npx.cmd @erica-s/ai-agent-notify", "async": true }] }]
+        "Stop": [{ "hooks": [{ "type": "command", "command": "ai-agent-notify.cmd", "async": true }] }],
+        "PermissionRequest": [{ "hooks": [{ "type": "command", "command": "ai-agent-notify.cmd", "async": true }] }]
     }
 }
 ```
@@ -21,7 +32,6 @@ Add to your `~/.claude/settings.json`:
 - `Stop` sends notifications when a Claude Code task finishes.
 - `PermissionRequest` sends notifications when Claude Code needs approval.
 - Remove either hook if you only want one of those two behaviors.
-- This uses `npx.cmd` so it picks up the latest published package automatically.
 
 ## Codex
 
@@ -31,21 +41,20 @@ Add to your `~/.claude/settings.json`:
 - If you only care about completion notifications, you can omit the sidecar
   block.
 
-Recommended `~/.codex/config.toml`:
+`~/.codex/config.toml`:
 
 ```toml
-notify = ["npx.cmd", "@erica-s/ai-agent-notify"]
+notify = ["ai-agent-notify.cmd"]
 
 [mcp_servers.ai_agent_notify_sidecar]
-command = "npx.cmd"
-args = ["@erica-s/ai-agent-notify", "codex-mcp-sidecar"]
+command = "ai-agent-notify.cmd"
+args = ["codex-mcp-sidecar"]
 required = false
 startup_timeout_sec = 30
 ```
 
 - `codex-session-watch` is the main path for approval reminders.
 - `codex-mcp-sidecar` will usually auto-start `codex-session-watch`.
-- `startup_timeout_sec = 30` leaves headroom for the extra `npx` startup hop.
 - Do **not** set `cwd` on the MCP server entry above.
 
 ## Requirements
