@@ -144,12 +144,6 @@ $notificationTitle = "$devMarker$Title ($terminalName)"
 $escapedTitle = [System.Security.SecurityElement]::Escape($notificationTitle)
 $escapedMessage = [System.Security.SecurityElement]::Escape($Message)
 
-$actionsXml = ''
-if ($hwnd) {
-    $activateUrl = "erica-s.ai-agent-notify.activate-window://$hwnd"
-    $actionsXml = "<actions><action activationType=`"protocol`" arguments=`"$activateUrl`" content=`"Open`"/></actions>"
-}
-
 # 鍥炬爣 XML锛堣矾寰勬棤鏁堟椂涓虹┖瀛楃涓诧紝淇濊瘉闄嶇骇瀹夊叏锛?
 $iconXml = ''
 if ($iconPath -and (Test-Path $iconPath)) {
@@ -172,7 +166,6 @@ try {
       <text>$escapedMessage</text>
     </binding>
   </visual>
-  $actionsXml
 </toast>
 "@
 

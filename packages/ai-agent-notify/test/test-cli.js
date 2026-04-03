@@ -93,11 +93,9 @@ console.log("\n--- File structure ---");
   "bin/cli.js",
   "lib/codex-sidecar-state.js",
   "lib/notification-sources.js",
-  "postinstall.js",
   "scripts/find-hwnd.ps1",
   "scripts/get-shell-pid.ps1",
   "scripts/notify.ps1",
-  "scripts/register-protocol.ps1",
   "scripts/start-hidden.vbs",
   "scripts/start-tab-color-watcher.ps1",
   "scripts/tab-color-watcher.ps1",
@@ -118,23 +116,22 @@ console.log("\n--- File structure ---");
 console.log("\n--- package.json ---");
 
 const pkg = JSON.parse(read("package.json"));
-test("postinstall script points to node postinstall.js", () => {
-  assert(pkg.scripts && pkg.scripts.postinstall === "node postinstall.js");
+test("package omits postinstall script", () => {
+  assert(!pkg.scripts || !pkg.scripts.postinstall);
 });
 
 test("package keeps zero runtime dependencies", () => {
   assert(Object.keys(pkg.dependencies || {}).length === 0, "unexpected runtime dependencies");
 });
 
-test("files includes postinstall.js", () => {
-  assert(Array.isArray(pkg.files) && pkg.files.includes("postinstall.js"));
+test("files omits postinstall.js", () => {
+  assert(!Array.isArray(pkg.files) || !pkg.files.includes("postinstall.js"));
 });
 
 console.log("\n--- Content checks ---");
 
 const cliContent = read("bin/cli.js");
 const notifyContent = read("scripts/notify.ps1");
-const postinstallContent = read("postinstall.js");
 const startHiddenContent = read("scripts/start-hidden.vbs");
 const watcherContent = read("scripts/tab-color-watcher.ps1");
 test("cli.js resolves hwnd, shell pid, and spawns watcher through launcher", () => {
@@ -1185,7 +1182,7 @@ test("notification source normalizer respects explicit source title and message"
 test("notify.ps1 uses native toast + flash", () => {
   assert(notifyContent.includes("ToastNotificationManager"));
   assert(notifyContent.includes("FlashWindowEx"));
-  assert(notifyContent.includes("activationType=`\"protocol`\""));
+  assert(!notifyContent.includes("activationType=`\"protocol`\""));
   assert(notifyContent.includes("Needs Approval"));
   assert(!notifyContent.includes("Needs Permission"));
   assert(notifyContent.includes("[$source] $baseTitle"));
@@ -1200,10 +1197,6 @@ test("cli.js passes neutral notify env vars to PowerShell", () => {
   assert(!cliContent.includes("TOAST_NOTIFY_PROJECT_DIR"));
   assert(!cliContent.includes("CLAUDE_NOTIFY_PROJECT_DIR"));
   assert(!cliContent.includes("CLAUDE_PROJECT_DIR"));
-});
-
-test("postinstall registers protocol", () => {
-  assert(postinstallContent.includes("register-protocol.ps1"));
 });
 
 test("start-hidden.vbs runs argv command hidden", () => {
@@ -1324,7 +1317,6 @@ test("README and development docs only use valid local markdown links", () => {
 console.log("\n--- Smoke ---");
 
 if (!canSpawnChildren) {
-  skip("postinstall.js passes node syntax check", "sandbox blocks nested child_process execution");
   if (process.platform === "win32") {
     skip("tab-color-watcher.ps1 parses as a script block", "sandbox blocks nested child_process execution");
     skip("cli.js exits cleanly for Stop", "sandbox blocks nested child_process execution");
@@ -1332,12 +1324,6 @@ if (!canSpawnChildren) {
     skip("cli.js exits cleanly for default", "sandbox blocks nested child_process execution");
   }
 } else {
-  test("postinstall.js passes node syntax check", () => {
-    execFileSync(NODE_EXECUTABLE, ["--check", path.join(ROOT, "postinstall.js")], {
-      stdio: "pipe",
-    });
-  });
-
   if (process.platform === "win32") {
     test("tab-color-watcher.ps1 parses as a script block", () => {
       execFileSync(

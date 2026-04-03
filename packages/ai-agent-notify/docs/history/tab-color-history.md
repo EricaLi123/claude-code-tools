@@ -14,7 +14,6 @@
 
 - Toast
 - 任务栏闪烁
-- `Open` 按钮激活窗口
 
 但这些只能定位到窗口，不能定位到同一窗口里的具体 Tab。因此后来引入了 Windows Terminal Tab 颜色提示。
 

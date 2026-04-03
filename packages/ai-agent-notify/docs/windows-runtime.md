@@ -88,29 +88,12 @@ Toast 图标 = 底层 exe 图标 + 上层静态符号 PNG，由 [`scripts/notify
 
 **采用方案：** `VSCODE_GIT_IPC_HANDLE` 命名管道。通过 Win32 API `GetNamedPipeServerProcessId` 获取 pipe 服务端 PID，再向上一层定位到主窗口。
 
-### Toast "Open" 按钮 — 终端窗口闪烁
+### 任务栏闪烁
 
-**现象：** 点击 Toast 的 `Open` 按钮时，会短暂闪现一个终端窗口。
+如果 `cli.js` 成功定位到 `TOAST_NOTIFY_HWND`，`notify.ps1` 还会调用 `FlashWindowEx` 闪烁目标窗口的任务栏按钮。
 
-**根本原因：** 使用 `powershell.exe -EncodedCommand` 或 `-WindowStyle Hidden` 启动时，PowerShell 在窗口样式生效前仍可能短暂显示窗口。
-
-**采用方案：** VBScript wrapper。由 `wscript.exe` 调用 VBScript，再由 VBScript 调用 PowerShell，利用 `shell.Run command, 0, False` 完全隐藏控制台。
-
-### Toast 激活机制与 Windows 打包限制
-
-Windows Toast 支持 `protocol`、`foreground`、`background` 三类激活，但未打包的桌面应用只能稳定使用 protocol activation。当前作为 npm 包分发，因此采用 protocol activation：
-
-```xml
-<action activationType="protocol"
-        arguments="erica-s.ai-agent-notify.activate-window://<hwnd>"
-        content="Open"/>
-```
-
-当前仍成立的限制：
-
-- protocol handler 启动的进程可能在后台运行，不会自动获得焦点
+- 这条信号负责“提醒哪个窗口需要看”
 - Windows 10 / 11 的实际表现可能有差异
-- `SetForegroundWindow` 受 Windows 防焦点窃取策略限制
 
 ### Tab 级定位 — Windows Terminal Tab 颜色指示器
 

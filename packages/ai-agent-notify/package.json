@@ -10,13 +10,11 @@
     "lib/",
     "scripts/",
     "assets/",
-    ".published",
-    "postinstall.js"
+    ".published"
   ],
   "scripts": {
     "prepublishOnly": "node -e \"require('fs').writeFileSync('.published', JSON.stringify({version: require('./package.json').version, date: new Date().toISOString()}))\"",
     "postpack": "node -e \"require('fs').rmSync('.published', {force:true})\"",
-    "postinstall": "node postinstall.js",
     "test": "node test/test-cli.js"
   },
   "keywords": [
