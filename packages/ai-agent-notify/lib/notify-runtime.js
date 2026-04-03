@@ -2,6 +2,7 @@ const { spawn, spawnSync } = require("child_process");
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
+const { getArgValue, getEnvFirst } = require("./shared-utils");
 
 const LOG_DIR = path.join(os.tmpdir(), "ai-agent-notify");
 const LOG_FILE_PREFIX = "ai-agent-notify";
@@ -263,22 +264,6 @@ function writeChildStderr(result, log) {
     .split(/\r?\n/)
     .filter(Boolean)
     .forEach((line) => log(line));
-}
-
-function getArgValue(argv, name) {
-  const index = argv.indexOf(name);
-  return index >= 0 && index + 1 < argv.length ? argv[index + 1] : "";
-}
-
-function getEnvFirst(names) {
-  for (const name of names) {
-    const value = process.env[name];
-    if (typeof value === "string" && value.trim()) {
-      return value.trim();
-    }
-  }
-
-  return "";
 }
 
 module.exports = {

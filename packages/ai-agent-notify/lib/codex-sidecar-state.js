@@ -2,6 +2,7 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 
+const { parsePositiveInteger } = require("./shared-utils");
 const {
   countCommonSegments,
   normalizeWindowsPath,
@@ -206,11 +207,6 @@ function compareRecordsByFreshness(left, right) {
     parseTime(right.updatedAt) - parseTime(left.updatedAt) ||
     parseTime(right.startedAt) - parseTime(left.startedAt)
   );
-}
-
-function parsePositiveInteger(value) {
-  const parsed = parseInt(value, 10);
-  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
 }
 
 function parseTime(value) {

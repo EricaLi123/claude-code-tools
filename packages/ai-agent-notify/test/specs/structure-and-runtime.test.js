@@ -5,10 +5,14 @@ module.exports = function runStructureAndRuntimeTests(h) {
 
   [
     "bin/cli.js",
+    "lib/codex-approval.js",
     "lib/codex-sidecar-resolver.js",
     "lib/codex-sidecar-state.js",
+    "lib/codex-session-events.js",
+    "lib/codex-session-watch.js",
     "lib/notification-sources.js",
     "lib/notify-runtime.js",
+    "lib/shared-utils.js",
     "lib/windows-paths.js",
     "scripts/find-hwnd.ps1",
     "scripts/get-shell-pid.ps1",
@@ -49,19 +53,30 @@ module.exports = function runStructureAndRuntimeTests(h) {
   section("Content checks");
 
   const cliContent = read("bin/cli.js");
+  const approvalContent = read("lib/codex-approval.js");
   const notifyRuntimeContent = read("lib/notify-runtime.js");
   const sidecarResolverContent = read("lib/codex-sidecar-resolver.js");
   const sidecarStateContent = read("lib/codex-sidecar-state.js");
+  const sessionEventContent = read("lib/codex-session-events.js");
+  const sessionWatchContent = read("lib/codex-session-watch.js");
+  const sharedUtilsContent = read("lib/shared-utils.js");
   const notifyContent = read("scripts/notify.ps1");
   const startHiddenContent = read("scripts/start-hidden.vbs");
   const watcherContent = read("scripts/tab-color-watcher.ps1");
 
-  test("cli.js delegates notification runtime and sidecar resolution into lib modules", () => {
+  test("cli.js delegates runtime and codex logic into lib modules", () => {
     assert(cliContent.includes("../lib/notify-runtime"));
     assert(cliContent.includes("../lib/codex-sidecar-resolver"));
+    assert(cliContent.includes("../lib/codex-approval"));
+    assert(cliContent.includes("../lib/codex-session-events"));
+    assert(cliContent.includes("../lib/codex-session-watch"));
+    assert(cliContent.includes("../lib/shared-utils"));
     assert(!cliContent.includes("function emitNotification("));
     assert(!cliContent.includes("function createRuntime("));
     assert(!cliContent.includes("function startTabColorWatcher("));
+    assert(!cliContent.includes("function buildCodexSessionEvent("));
+    assert(!cliContent.includes("function getCodexRequireEscalatedSuppressionReason("));
+    assert(!cliContent.includes("function listRolloutFiles("));
   });
 
   test("notify-runtime.js resolves hwnd, shell pid, and spawns watcher through launcher", () => {
@@ -73,21 +88,24 @@ module.exports = function runStructureAndRuntimeTests(h) {
     assert(notifyRuntimeContent.includes("WatcherPidFile"));
   });
 
-  test("cli.js includes codex session watcher mode", () => {
+  test("cli.js routes codex session watcher mode while watch modules own the details", () => {
     assert(cliContent.includes("codex-session-watch"));
-    assert(cliContent.includes("exec_approval_request"));
-    assert(cliContent.includes("request_permissions"));
-    assert(cliContent.includes("request_user_input"));
-    assert(cliContent.includes("apply_patch_approval_request"));
     assert(cliContent.includes("codex-tui.log"));
-    assert(cliContent.includes("ToolCall: "));
-    assert(cliContent.includes('"sandbox_permissions":"require_escalated"'));
     assert(!cliContent.includes("apply_patch_outside_workspace"));
     assert(!cliContent.includes("codex-watch"));
     assert(!cliContent.includes("waitingOnApproval"));
     assert(cliContent.includes("sessionsDir"));
     assert(cliContent.includes('acquireSingleInstanceLock("codex-session-watch"'));
     assert(cliContent.includes("start-hidden.vbs"));
+
+    assert(sessionEventContent.includes("exec_approval_request"));
+    assert(sessionEventContent.includes("request_permissions"));
+    assert(sessionEventContent.includes("request_user_input"));
+    assert(sessionEventContent.includes("apply_patch_approval_request"));
+    assert(sessionEventContent.includes("ToolCall: "));
+    assert(sessionEventContent.includes('"sandbox_permissions":"require_escalated"'));
+    assert(sessionWatchContent.includes("function consumeSessionFileUpdates("));
+    assert(sessionWatchContent.includes("tracking tui log file="));
   });
 
   test("cli.js includes codex mcp sidecar mode", () => {
@@ -111,6 +129,22 @@ module.exports = function runStructureAndRuntimeTests(h) {
     assert(sidecarStateContent.includes('require("./windows-paths")'));
     assert(!sidecarStateContent.includes("function normalizeWindowsPath("));
     assert(sidecarResolverContent.includes('require("./windows-paths")'));
+  });
+
+  test("shared utils centralize argv/env and integer parsing helpers", () => {
+    assert(sharedUtilsContent.includes("function getArgValue("));
+    assert(sharedUtilsContent.includes("function getEnvFirst("));
+    assert(sharedUtilsContent.includes("function parsePositiveInteger("));
+    assert(!notifyRuntimeContent.includes("function getArgValue("));
+    assert(!notifyRuntimeContent.includes("function getEnvFirst("));
+    assert(!sidecarStateContent.includes("function parsePositiveInteger("));
+  });
+
+  test("approval logic lives outside cli.js", () => {
+    assert(approvalContent.includes("function getCodexRequireEscalatedSuppressionReason("));
+    assert(approvalContent.includes("function extractCommandApprovalRoots("));
+    assert(approvalContent.includes("function confirmSessionApprovalForRecentEvents("));
+    assert(approvalContent.includes("function emitCodexApprovalNotification("));
   });
 
   test("windows path normalizer keeps blank values blank", () => {
