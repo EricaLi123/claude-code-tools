@@ -8,7 +8,6 @@ const CODEX_EVENT_NAME_BY_TYPE = {
   "apply-patch-approval-request": "PermissionRequest",
   "request-user-input": "InputRequest",
 };
-const ENV_PAYLOAD_KEYS = ["AI_AGENT_NOTIFY_PAYLOAD"];
 
 function normalizeIncomingNotification({ argv = [], stdinData = "", env = {} } = {}) {
   const candidates = getIncomingPayloadCandidates(argv, stdinData, env);
@@ -46,14 +45,6 @@ function getIncomingPayloadCandidates(argv, stdinData, env) {
     raw: stdinData,
     acceptNonJson: true,
   });
-
-  for (const envKey of ENV_PAYLOAD_KEYS) {
-    pushPayloadCandidate(candidates, {
-      transport: `env:${envKey}`,
-      raw: env && typeof env === "object" ? env[envKey] : "",
-      acceptNonJson: false,
-    });
-  }
 
   for (let index = argv.length - 1; index >= 0; index -= 1) {
     pushPayloadCandidate(candidates, {

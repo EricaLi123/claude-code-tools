@@ -1141,28 +1141,6 @@ test("notification source normalizer recognizes Codex legacy notify argv payload
   assert(normalized.projectDir === TEST_PROJECT_DIR);
 });
 
-test("notification source normalizer recognizes compatibility env payloads", () => {
-  const normalized = normalizeIncomingNotification({
-    argv: [],
-    stdinData: "",
-    env: {
-      AI_AGENT_NOTIFY_PAYLOAD: JSON.stringify({
-        type: "agent-turn-complete",
-        "thread-id": "thread-env-1",
-        "turn-id": "turn-env-1",
-        cwd: TEST_PROJECT_DIR,
-        client: "codex-tui",
-      }),
-    },
-  });
-
-  assert(normalized.sourceId === "codex-legacy-notify");
-  assert(normalized.transport === "env:AI_AGENT_NOTIFY_PAYLOAD");
-  assert(normalized.eventName === "Stop");
-  assert(normalized.sessionId === "thread-env-1");
-  assert(normalized.turnId === "turn-env-1");
-});
-
 test("notification source normalizer respects explicit source title and message", () => {
   const normalized = normalizeIncomingNotification({
     argv: [],
