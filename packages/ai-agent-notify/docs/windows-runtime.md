@@ -5,25 +5,25 @@
 ## 要解决的问题
 
 - Windows 下要兼顾 notify payload 传递、命令启动方式、窗口定位和激活限制。
-- 包的对外入口要尽量稳定，但内部可以为了兼容性增加 wrapper、env 转运和额外 watcher。
+- 包的对外入口要尽量稳定，同时兼顾 payload 传递和额外 watcher 带来的兼容性约束。
 - 在 Windows Terminal 场景下，窗口级提醒还不够，需要尽量补到 tab 级指示。
 
 ## 当前结论
 
 - `hwnd` / `shellPid` 的定位放在 Node 侧完成，再把结果通过环境变量传给 `notify.ps1`。
-- Windows wrapper 的 payload 转运和 `AI_AGENT_NOTIFY_PAYLOAD` 约定统一放在这里，不再混在总入口文档里。
+- Windows direct process launch 的命令约定和 payload 约束统一放在这里，不再混在总入口文档里。
 - Windows Terminal tab watcher 只在 WT 环境下启用；非 WT 环境只保留现有 toast / flash / open 行为。
 - 带机器环境前提的 tab 颜色演进过程单独归档，不和当前实现细节混排。
 
 ## 当前约定
 
-### Wrapper / payload 转运
+### Payload 约束
 
-Windows shim 层在转发 Codex legacy notify payload 时，可能遇到 argv 长度或再次展开的问题。当前 wrapper/runtime 约定是：
+Codex legacy notify 会把 payload 作为最后一个 JSON argv 追加给命令。当前 runtime 约定是：
 
-- wrapper 可以先接住原始 payload，再通过 `AI_AGENT_NOTIFY_PAYLOAD` 转交给 `bin/cli.js`
-- `normalizeIncomingNotification()` 同时识别 stdin / argv / env 三类 transport
-- wrapper 只是 Windows 兼容性兜底，不改变最终对外入口仍然叫 `ai-agent-notify`
+- `normalizeIncomingNotification()` 负责统一收口 Claude 的 stdin JSON 和 Codex 的 argv JSON
+- 公开默认入口仍然是 `ai-agent-notify.cmd`
+- 超长 session 仍可能放大 Windows argv 风险；这和命令解析是两个独立问题
 
 相关历史和机器实测见 [`history/codex-completion-findings.md`](./history/codex-completion-findings.md)。
 

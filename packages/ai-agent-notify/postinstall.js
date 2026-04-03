@@ -5,7 +5,6 @@ if (process.platform !== "win32") {
 }
 
 const { execFileSync } = require("child_process");
-const fs = require("fs");
 const path = require("path");
 
 const tasks = [
@@ -31,24 +30,4 @@ for (const task of tasks) {
   } catch {
     console.warn(task.warning);
   }
-}
-
-try {
-  installCodexWrapper();
-} catch {
-  console.warn("ai-agent-notify: Codex wrapper install skipped (non-fatal)");
-}
-
-function installCodexWrapper() {
-  const localAppData = process.env.LOCALAPPDATA;
-  if (!localAppData) {
-    throw new Error("LOCALAPPDATA is not set");
-  }
-
-  const targetDir = path.join(localAppData, "ai-agent-notify");
-  const sourcePath = path.join(__dirname, "scripts", "ai-agent-notify-codex-wrapper.vbs");
-  const targetPath = path.join(targetDir, "ai-agent-notify-codex-wrapper.vbs");
-
-  fs.mkdirSync(targetDir, { recursive: true });
-  fs.copyFileSync(sourcePath, targetPath);
 }

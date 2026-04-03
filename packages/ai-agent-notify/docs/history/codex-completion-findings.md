@@ -6,7 +6,7 @@
 
 - 解释为什么今天的 public guidance 和内部配置路线会是现在这样。
 - 记录已经踩过的 Windows / Codex 组合坑，避免以后把独立问题重新混成一团。
-- 给后续改配置、改 wrapper、改 approval 路线的人一个最短回溯入口。
+- 给后续改配置、改 launcher、改 approval 路线的人一个最短回溯入口。
 
 ## 先看当前结论
 
@@ -114,5 +114,22 @@ startup_timeout_sec = 30
 ## 这页对开发的意义
 
 - `codex-approval.md` 负责定义“现在怎么配”
-- `windows-runtime.md` 负责解释 Windows 直接起进程、wrapper 和 tab 高亮等运行时约束
+- `windows-runtime.md` 负责解释 Windows 直接起进程、payload 转运和 tab 高亮等运行时约束
 - 本页只保留“为什么今天会收敛到这些结论”的证据链
+## 追加记录：2026-04-02 桌面起源旧线程接到 CLI 后仍可能不触发 completion notify
+
+同机对照里，`notify` 是否能触发，不只取决于当前是不是“在 CLI 里继续聊”，还取决于这条线程最初是怎么创建的：
+
+- 新开的 CLI 原生线程：session rollout 里的 `session_meta` 显示 `originator = "codex-tui"`、`source = "cli"`，completion notify 可正常触发
+- 旧的 Desktop / VSCode 起源线程：session rollout 里的 `session_meta` 显示 `originator = "Codex Desktop"`、`source = "vscode"`；即使后续在 CLI 里继续，这条线程最近多次 `tasks: close` 后仍没有看到 Codex 自动调用 `notify`
+
+这轮排障里还顺手排除了一个独立问题：
+
+- `C:\Users\Erica\ai-agent-notify.cmd` 曾被误写成 22 字节 ANSI 控制序列，导致当前目录同名命令遮蔽
+- 删除该脏文件后，`ai-agent-notify.cmd` 本身恢复正常，但旧线程仍然不触发 notify
+
+当前影响：
+
+- 这说明“同名坏文件遮蔽”和“旧线程不触发 completion notify”是两个独立问题
+- 现有证据只够支持“Desktop / VSCode 起源线程接到 CLI 后，当前版本下不可靠”；还不能把它上升成官方已文档化规则
+- 需要稳定 completion notify 时，优先新开 `source = "cli"` 的 CLI 原生线程，不要依赖旧的 Desktop / VSCode 起源线程

@@ -7,6 +7,7 @@ const { execFileSync } = require("child_process");
 const fs = require("fs");
 const path = require("path");
 
+const NODE_EXECUTABLE = process.execPath;
 const ROOT = path.join(__dirname, "..");
 const TEST_PROJECT_DIR = "D:\\repo\\sample-project";
 const TEST_PACKAGE_DIR = `${TEST_PROJECT_DIR}\\packages\\ai-agent-notify`;
@@ -95,7 +96,6 @@ console.log("\n--- File structure ---");
   "postinstall.js",
   "scripts/find-hwnd.ps1",
   "scripts/get-shell-pid.ps1",
-  "scripts/ai-agent-notify-codex-wrapper.vbs",
   "scripts/notify.ps1",
   "scripts/register-protocol.ps1",
   "scripts/start-hidden.vbs",
@@ -134,7 +134,6 @@ console.log("\n--- Content checks ---");
 
 const cliContent = read("bin/cli.js");
 const notifyContent = read("scripts/notify.ps1");
-const codexWrapperContent = read("scripts/ai-agent-notify-codex-wrapper.vbs");
 const postinstallContent = read("postinstall.js");
 const startHiddenContent = read("scripts/start-hidden.vbs");
 const watcherContent = read("scripts/tab-color-watcher.ps1");
@@ -1145,7 +1144,7 @@ test("notification source normalizer recognizes Codex legacy notify argv payload
   assert(normalized.projectDir === TEST_PROJECT_DIR);
 });
 
-test("notification source normalizer recognizes wrapper env payloads", () => {
+test("notification source normalizer recognizes compatibility env payloads", () => {
   const normalized = normalizeIncomingNotification({
     argv: [],
     stdinData: "",
@@ -1207,25 +1206,10 @@ test("postinstall registers protocol", () => {
   assert(postinstallContent.includes("register-protocol.ps1"));
 });
 
-test("postinstall installs the codex wrapper into LOCALAPPDATA", () => {
-  assert(postinstallContent.includes("installCodexWrapper"));
-  assert(postinstallContent.includes("ai-agent-notify-codex-wrapper.vbs"));
-  assert(postinstallContent.includes("LOCALAPPDATA"));
-});
-
 test("start-hidden.vbs runs argv command hidden", () => {
   assert(startHiddenContent.includes("shell.Run command, 0, False"));
   assert(startHiddenContent.includes("WScript.Arguments.Count"));
   assert(startHiddenContent.includes("background watcher"));
-});
-
-test("codex wrapper forwards payload through env and then calls the installed shim", () => {
-  assert(codexWrapperContent.includes("AI_AGENT_NOTIFY_PAYLOAD"));
-  assert(codexWrapperContent.includes("ai-agent-notify.cmd"));
-  assert(codexWrapperContent.includes('%ComSpec%'));
-  assert(codexWrapperContent.includes("exitCode = 9009"));
-  assert(codexWrapperContent.includes("npx.cmd @erica-s/ai-agent-notify"));
-  assert(codexWrapperContent.includes("shell.Run"));
 });
 
 test("watcher resets through console attachment plus standard streams", () => {
@@ -1320,7 +1304,7 @@ test("README stays user-focused while internal docs remain split by topic", () =
   assert(approvalContent.includes("codex-session-watch"));
   assert(approvalContent.includes("codex-mcp-sidecar"));
   assert(approvalContent.includes("default.rules"));
-  assert(windowsRuntimeContent.includes("AI_AGENT_NOTIFY_PAYLOAD"));
+  assert(windowsRuntimeContent.includes("ai-agent-notify.cmd"));
   assert(windowsRuntimeContent.includes("FRAME_BACKGROUND"));
   assert(historyContent.includes("os error 206"));
   assert(historyContent.includes("TUI fallback"));
@@ -1349,7 +1333,9 @@ if (!canSpawnChildren) {
   }
 } else {
   test("postinstall.js passes node syntax check", () => {
-    execFileSync("node", ["--check", path.join(ROOT, "postinstall.js")], { stdio: "pipe" });
+    execFileSync(NODE_EXECUTABLE, ["--check", path.join(ROOT, "postinstall.js")], {
+      stdio: "pipe",
+    });
   });
 
   if (process.platform === "win32") {
@@ -1373,7 +1359,7 @@ if (!canSpawnChildren) {
         const input = eventName
           ? JSON.stringify({ hook_event_name: eventName, session_id: `test-${label}` })
           : "";
-        execFileSync("node", [path.join(ROOT, "bin", "cli.js")], {
+        execFileSync(NODE_EXECUTABLE, [path.join(ROOT, "bin", "cli.js")], {
           input,
           timeout: 15000,
           encoding: "utf8",
@@ -1384,7 +1370,7 @@ if (!canSpawnChildren) {
 
     test("cli.js exits cleanly for Codex legacy notify argv payload", () => {
       execFileSync(
-        "node",
+        NODE_EXECUTABLE,
         [
           path.join(ROOT, "bin", "cli.js"),
           JSON.stringify({
@@ -1406,11 +1392,15 @@ if (!canSpawnChildren) {
     });
 
     test("cli.js prints help for codex-session-watch", () => {
-      const output = execFileSync("node", [path.join(ROOT, "bin", "cli.js"), "codex-session-watch", "--help"], {
-        timeout: 15000,
-        encoding: "utf8",
-        stdio: ["pipe", "pipe", "pipe"],
-      });
+      const output = execFileSync(
+        NODE_EXECUTABLE,
+        [path.join(ROOT, "bin", "cli.js"), "codex-session-watch", "--help"],
+        {
+          timeout: 15000,
+          encoding: "utf8",
+          stdio: ["pipe", "pipe", "pipe"],
+        }
+      );
       assert(output.includes("codex-session-watch"));
       assert(output.includes("--sessions-dir"));
       assert(output.includes("--tui-log"));
