@@ -69,7 +69,7 @@ Toast 图标 = 底层 exe 图标 + 上层静态符号 PNG，由 [`scripts/notify
 
 **缓存文件名为什么包含 exe slug？**
 
-不同 app 可能先后触发同一 hook type，底层图标不同，必须按 `{hookName}-{exeSlug}` 分别缓存，否则后写的会覆盖前者。
+不同 app 可能先后触发同一图标类型，底层图标不同，必须按 `{iconKey}-{exeSlug}` 分别缓存，否则后写的会覆盖前者。
 
 **为什么不需要关心缓存清理？**
 

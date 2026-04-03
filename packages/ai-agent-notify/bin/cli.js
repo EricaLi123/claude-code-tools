@@ -1347,6 +1347,54 @@ function getCodexExecApprovalDescriptor(toolName, args) {
   return toolName || "tool";
 }
 
+function normalizeInlineText(value) {
+  return typeof value === "string" ? value.replace(/\s+/g, " ").trim() : "";
+}
+
+function sanitizeDedupeDescriptorPart(value) {
+  return normalizeInlineText(value).replace(/[|]/g, "/").slice(0, 80);
+}
+
+function getCodexInputRequestQuestions(args) {
+  return Array.isArray(args && args.questions)
+    ? args.questions.filter((question) => question && typeof question === "object" && !Array.isArray(question))
+    : [];
+}
+
+function getCodexInputRequestDescriptor(args) {
+  const questions = getCodexInputRequestQuestions(args);
+  if (!questions.length) {
+    return "request_user_input";
+  }
+
+  const parts = questions.slice(0, 3).map((question, index) => {
+    return (
+      sanitizeDedupeDescriptorPart(question.id) ||
+      sanitizeDedupeDescriptorPart(question.header) ||
+      sanitizeDedupeDescriptorPart(question.question) ||
+      `q${index + 1}`
+    );
+  });
+
+  return `request_user_input:${parts.join(",")}:${questions.length}`;
+}
+
+function getCodexInputRequestMessage(args) {
+  const questions = getCodexInputRequestQuestions(args);
+  if (!questions.length) {
+    return "Waiting for your input";
+  }
+
+  const firstQuestion =
+    normalizeInlineText(questions[0].question) || normalizeInlineText(questions[0].header);
+
+  if (!firstQuestion) {
+    return "Waiting for your input";
+  }
+
+  return questions.length > 1 ? `${firstQuestion} (+${questions.length - 1} more)` : firstQuestion;
+}
+
 function buildApprovalDedupeKey({
   sessionId,
   turnId,
@@ -2548,11 +2596,26 @@ function handleCodexTuiLogLine(
     return;
   }
 
-  const event = buildCodexTuiApprovalEvent(tuiState, line, {
-    sessionProjectDirs,
-    sessionApprovalContexts,
-  });
+  const event =
+    buildCodexTuiApprovalEvent(tuiState, line, {
+      sessionProjectDirs,
+      sessionApprovalContexts,
+    }) ||
+    buildCodexTuiInputEvent(tuiState, line, {
+      sessionProjectDirs,
+    });
   if (!event) {
+    return;
+  }
+
+  if (event.eventType !== "require_escalated_tool_call") {
+    emitCodexApprovalNotification({
+      event,
+      runtime,
+      terminal,
+      emittedEventKeys,
+      origin: "tui",
+    });
     return;
   }
 
@@ -2607,6 +2670,30 @@ function buildCodexSessionEvent(state, record) {
 
   if (record.type === "response_item" && payload.type === "function_call") {
     const args = parseJsonObjectMaybe(payload.arguments);
+    if (payload.name === "request_user_input" && args) {
+      const descriptor = getCodexInputRequestDescriptor(args);
+      return {
+        ...createNotificationSpec({
+          sourceId: "codex-session-watch",
+          sessionId,
+          turnId,
+          eventName: "InputRequest",
+          projectDir,
+          rawEventType: payload.name,
+          message: getCodexInputRequestMessage(args),
+        }),
+        eventType: payload.name,
+        callId,
+        dedupeKey: buildApprovalDedupeKey({
+          sessionId,
+          turnId,
+          callId,
+          approvalKind: "input",
+          descriptor,
+        }),
+      };
+    }
+
     if (!args || args.sandbox_permissions !== "require_escalated") {
       return null;
     }
@@ -2685,26 +2772,49 @@ function buildCodexSessionEvent(state, record) {
   }
 }
 
-function buildCodexTuiApprovalEvent(tuiState, line, { sessionProjectDirs, sessionApprovalContexts }) {
-  if (!line.includes("ToolCall: shell_command ") || !line.includes('"sandbox_permissions":"require_escalated"')) {
+function parseCodexTuiToolCallLine(line) {
+  if (!line || !line.includes("ToolCall: ")) {
     return null;
   }
 
   const match = line.match(
-    /thread_id=([^}:]+).*?submission\.id="([^"]+)".*?(?:turn\.id=([^ ]+).*?)?ToolCall: shell_command (\{.*\}) thread_id=/
+    /thread_id=([^}:]+).*?submission\.id="([^"]+)".*?(?:turn\.id=([^ ]+).*?)?ToolCall: ([^ ]+) (\{.*\}) thread_id=/
   );
 
   if (!match) {
     return null;
   }
 
-  const [, sessionId, submissionId, turnIdFromLog, rawArgs] = match;
+  const [, sessionId, submissionId, turnIdFromLog, toolName, rawArgs] = match;
   const args = parseJsonObjectMaybe(rawArgs);
+  if (!args) {
+    return null;
+  }
+
+  return {
+    sessionId,
+    submissionId,
+    turnId: turnIdFromLog || submissionId,
+    toolName,
+    args,
+  };
+}
+
+function buildCodexTuiApprovalEvent(tuiState, line, { sessionProjectDirs, sessionApprovalContexts }) {
+  if (!line.includes('"sandbox_permissions":"require_escalated"')) {
+    return null;
+  }
+
+  const toolCall = parseCodexTuiToolCallLine(line);
+  if (!toolCall || toolCall.toolName !== "shell_command") {
+    return null;
+  }
+
+  const { sessionId, submissionId, turnId, args } = toolCall;
   if (!args || args.sandbox_permissions !== "require_escalated") {
     return null;
   }
 
-  const turnId = turnIdFromLog || submissionId;
   const projectDir = args.workdir || sessionProjectDirs.get(sessionId) || "";
   const descriptor = getCodexExecApprovalDescriptor("shell_command", args);
 
@@ -2730,6 +2840,36 @@ function buildCodexTuiApprovalEvent(tuiState, line, { sessionProjectDirs, sessio
       turnId,
       fallbackId: submissionId,
       approvalKind: "exec",
+      descriptor,
+    }),
+  };
+}
+
+function buildCodexTuiInputEvent(tuiState, line, { sessionProjectDirs }) {
+  const toolCall = parseCodexTuiToolCallLine(line);
+  if (!toolCall || toolCall.toolName !== "request_user_input") {
+    return null;
+  }
+
+  const { sessionId, submissionId, turnId, args } = toolCall;
+  const descriptor = getCodexInputRequestDescriptor(args);
+
+  return {
+    ...createNotificationSpec({
+      sourceId: "codex-session-watch",
+      sessionId,
+      turnId,
+      eventName: "InputRequest",
+      projectDir: sessionProjectDirs.get(sessionId) || "",
+      rawEventType: "request_user_input",
+      message: getCodexInputRequestMessage(args),
+    }),
+    eventType: "request_user_input",
+    dedupeKey: buildApprovalDedupeKey({
+      sessionId,
+      turnId,
+      fallbackId: submissionId,
+      approvalKind: "input",
       descriptor,
     }),
   };
@@ -2963,6 +3103,7 @@ function writeWindowsTerminalColor(eventName, terminal, log) {
   const colorMap = {
     Stop: "rgb:33/cc/33",
     PermissionRequest: "rgb:ff/99/00",
+    InputRequest: "rgb:ff/99/00",
   };
   const tabColor = colorMap[eventName];
 
@@ -3082,6 +3223,7 @@ function safeStringify(value) {
 module.exports = {
   buildCodexSessionEvent,
   buildCodexTuiApprovalEvent,
+  buildCodexTuiInputEvent,
   buildApprovalDedupeKey,
   buildPendingApprovalBatchKey,
   cancelPendingApprovalNotificationsBySuppression,
@@ -3089,6 +3231,7 @@ module.exports = {
   drainPendingApprovalBatch,
   extractCommandApprovalRoots,
   getCodexApprovalNotifyGraceMs,
+  getCodexInputRequestDescriptor,
   getCodexRequireEscalatedSuppressionReason,
   getSessionRequireEscalatedSuppressionReason,
   handleMcpServerMessage,

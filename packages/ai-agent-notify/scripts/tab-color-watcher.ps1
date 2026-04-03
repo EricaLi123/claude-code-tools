@@ -23,6 +23,7 @@ Write-Log "started TargetPid=$TargetPid HookEvent=$HookEvent TerminalHwnd=$Termi
 $colorMap = @{
     'Stop'              = 'rgb:33/cc/33'
     'PermissionRequest' = 'rgb:ff/99/00'
+    'InputRequest'      = 'rgb:ff/99/00'
 }
 $color = if ($colorMap.ContainsKey($HookEvent)) { $colorMap[$HookEvent] } else { 'rgb:33/99/ff' }
 

@@ -31,6 +31,9 @@ if (-not $baseTitle) {
         'PermissionRequest' {
             $baseTitle = 'Needs Approval'
         }
+        'InputRequest' {
+            $baseTitle = 'Input Needed'
+        }
         default {
             $baseTitle = 'Notification'
         }
@@ -44,6 +47,9 @@ if (-not $message) {
         }
         'PermissionRequest' {
             $message = 'Waiting for your approval'
+        }
+        'InputRequest' {
+            $message = 'Waiting for your input'
         }
         default {
             $message = 'Notification'
@@ -80,14 +86,14 @@ if ($env:TOAST_NOTIFY_HWND) {
 Write-Log "hwnd=$hwnd terminal=$terminalName"
 
 # 鍚堟垚閫氱煡鍥炬爣锛氬簳灞?exe 鍥炬爣 + 涓婂眰闈欐€佺鍙?PNG
-# 缂撳瓨鍒?scripts/icons-cache/{hookName}-{exeSlug}.png锛宯pm install 閲嶅缓鍖呯洰褰曟椂闅忎箣娓呯┖
-function Get-NotifyIcon($hookName, $exePath) {
-    $staticIcon = [System.IO.Path]::GetFullPath([System.IO.Path]::Combine($PSScriptRoot, "..", "assets", "icons", "$hookName.png"))
+# 缂撳瓨鍒?scripts/icons-cache/{iconKey}-{exeSlug}.png锛宯pm install 閲嶅缓鍖呯洰褰曟椂闅忎箣娓呯┖
+function Get-NotifyIcon($iconKey, $exePath) {
+    $staticIcon = [System.IO.Path]::GetFullPath([System.IO.Path]::Combine($PSScriptRoot, "..", "assets", "icons", "$iconKey.png"))
     if (-not ($exePath -and (Test-Path $exePath))) { return $staticIcon }
 
     $exeSlug  = [System.IO.Path]::GetFileNameWithoutExtension($exePath).ToLower()
     $cacheDir = [System.IO.Path]::GetFullPath([System.IO.Path]::Combine($PSScriptRoot, "..", ".cache"))
-    $iconPath = [System.IO.Path]::Combine($cacheDir, "$hookName-$exeSlug.png")
+    $iconPath = [System.IO.Path]::Combine($cacheDir, "$iconKey-$exeSlug.png")
     if (-not (Test-Path $cacheDir)) { New-Item -ItemType Directory -Path $cacheDir | Out-Null }
     if (Test-Path $iconPath) { return $iconPath }
 
@@ -123,12 +129,13 @@ function Get-NotifyIcon($hookName, $exePath) {
     }
 }
 
-$hookName = switch ($eventName) {
+$iconKey = switch ($eventName) {
     'Stop'              { 'stop' }
     'PermissionRequest' { 'permission' }
+    'InputRequest'      { 'permission' }
     default             { 'info' }
 }
-$iconPath = Get-NotifyIcon $hookName $terminalExePath
+$iconPath = Get-NotifyIcon $iconKey $terminalExePath
 
 # 3. 鏋勫缓 toast 閫氱煡鍐呭
 # dev 鐗堟湰鍦ㄦ爣棰樺墠娣诲姞 [DEV] 鏍囪
@@ -191,4 +198,3 @@ if ($hwnd) {
         Write-Log "flash sent"
     } catch { Write-Log "flash failed: $_" }
 }
-

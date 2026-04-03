@@ -6,6 +6,7 @@ const CODEX_EVENT_NAME_BY_TYPE = {
   "exec-approval-request": "PermissionRequest",
   "request-permissions": "PermissionRequest",
   "apply-patch-approval-request": "PermissionRequest",
+  "request-user-input": "InputRequest",
 };
 const ENV_PAYLOAD_KEYS = ["AI_AGENT_NOTIFY_PAYLOAD"];
 
@@ -282,6 +283,8 @@ function inferNotificationTitle(eventName) {
       return "Done";
     case "PermissionRequest":
       return "Needs Approval";
+    case "InputRequest":
+      return "Input Needed";
     default:
       return "Notification";
   }
@@ -293,6 +296,8 @@ function inferNotificationMessage(eventName) {
       return "Task finished";
     case "PermissionRequest":
       return "Waiting for your approval";
+    case "InputRequest":
+      return "Waiting for your input";
     default:
       return "Notification";
   }
@@ -329,6 +334,7 @@ function canonicalizeNotificationTitle(title) {
     .replace(/^\[(Claude|Codex|Agent)\]\s*/i, "")
     .replace(/Needs Permission/g, "Needs Approval")
     .replace(/^(Claude|Codex|Agent)\s+Needs Approval$/i, "Needs Approval")
+    .replace(/^(Claude|Codex|Agent)\s+Input Needed$/i, "Input Needed")
     .replace(/^(Claude|Codex|Agent)\s+Done$/i, "Done")
     .replace(/^(Claude|Codex|Agent)$/i, "Notification");
 }

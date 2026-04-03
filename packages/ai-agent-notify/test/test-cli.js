@@ -11,7 +11,10 @@ const ROOT = path.join(__dirname, "..");
 const TEST_PROJECT_DIR = "D:\\repo\\sample-project";
 const TEST_PACKAGE_DIR = `${TEST_PROJECT_DIR}\\packages\\ai-agent-notify`;
 const cli = require(path.join(ROOT, "bin", "cli.js"));
-const { normalizeIncomingNotification } = require(path.join(ROOT, "lib", "notification-sources.js"));
+const {
+  createNotificationSpec,
+  normalizeIncomingNotification,
+} = require(path.join(ROOT, "lib", "notification-sources.js"));
 const sidecarState = require(path.join(ROOT, "lib", "codex-sidecar-state.js"));
 
 let passed = 0;
@@ -148,9 +151,10 @@ test("cli.js includes codex session watcher mode", () => {
   assert(cliContent.includes("codex-session-watch"));
   assert(cliContent.includes("exec_approval_request"));
   assert(cliContent.includes("request_permissions"));
+  assert(cliContent.includes("request_user_input"));
   assert(cliContent.includes("apply_patch_approval_request"));
   assert(cliContent.includes("codex-tui.log"));
-  assert(cliContent.includes('ToolCall: shell_command '));
+  assert(cliContent.includes("ToolCall: "));
   assert(cliContent.includes('"sandbox_permissions":"require_escalated"'));
   assert(!cliContent.includes("apply_patch_outside_workspace"));
   assert(!cliContent.includes("codex-watch"));
@@ -1002,6 +1006,41 @@ test("session watcher recognizes explicit apply_patch approval events from rollo
   assert(event.dedupeKey === "session-4|patch|turn-4|");
 });
 
+test("session watcher recognizes request_user_input prompts from rollout JSONL", () => {
+  const event = cli.buildCodexSessionEvent(
+    {
+      filePath: "C:\\Users\\ericali\\.codex\\sessions\\2026\\04\\03\\rollout-2026-04-03T16-04-13-session-input.jsonl",
+      sessionId: "session-input",
+      cwd: "D:\\tmp",
+      turnId: "turn-input",
+    },
+    {
+      type: "response_item",
+      payload: {
+        type: "function_call",
+        name: "request_user_input",
+        call_id: "call-input",
+        arguments: JSON.stringify({
+          questions: [
+            {
+              header: "计划类型",
+              id: "plan_target",
+              question: "这次要我基于什么来产出需要你确认的计划？",
+            },
+          ],
+        }),
+      },
+    }
+  );
+
+  assert(event);
+  assert(event.eventName === "InputRequest");
+  assert(event.title === "Input Needed");
+  assert(event.message === "这次要我基于什么来产出需要你确认的计划？");
+  assert(event.eventType === "request_user_input");
+  assert(event.dedupeKey === "session-input|input|turn-input|request_user_input:plan_target:1");
+});
+
 test("tui watcher ignores apply_patch tool calls because they are not reliable approval signals", () => {
   const event = cli.buildCodexTuiApprovalEvent(
     {},
@@ -1012,6 +1051,23 @@ test("tui watcher ignores apply_patch tool calls because they are not reliable a
   );
 
   assert(event === null);
+});
+
+test("tui watcher recognizes request_user_input prompts", () => {
+  const event = cli.buildCodexTuiInputEvent(
+    {},
+    '2026-04-03T08:04:51.916797Z  INFO session_loop{thread_id=session-input}:submission_dispatch{otel.name="op.dispatch.user_input" submission.id="submission-input" codex.op="user_input"}:turn{otel.name="session_task.turn" thread.id=session-input turn.id=turn-input model=gpt-5.4}: codex_core::stream_events_utils: ToolCall: request_user_input {"questions":[{"header":"计划类型","id":"plan_target","question":"这次要我基于什么来产出需要你确认的计划？","options":[{"label":"项目计划 (Recommended)","description":"进入 D:\\\\tmp\\\\ai-ui-case-runner-work 做进一步探查，再给出可执行计划。"}]}]} thread_id=session-input',
+    {
+      sessionProjectDirs: new Map([["session-input", "D:\\tmp"]]),
+    }
+  );
+
+  assert(event);
+  assert(event.eventName === "InputRequest");
+  assert(event.title === "Input Needed");
+  assert(event.message === "这次要我基于什么来产出需要你确认的计划？");
+  assert(event.eventType === "request_user_input");
+  assert(event.dedupeKey === "session-input|input|turn-input|request_user_input:plan_target:1");
 });
 
 test("notification source normalizer recognizes Claude hook payloads", () => {
@@ -1032,6 +1088,18 @@ test("notification source normalizer recognizes Claude hook payloads", () => {
   assert(normalized.title === "Needs Approval");
   assert(normalized.message === "Waiting for your approval");
   assert(normalized.projectDir === "");
+});
+
+test("notification spec infers titles and messages for InputRequest", () => {
+  const normalized = createNotificationSpec({
+    sourceId: "codex-session-watch",
+    eventName: "InputRequest",
+  });
+
+  assert(normalized.source === "Codex");
+  assert(normalized.eventName === "InputRequest");
+  assert(normalized.title === "Input Needed");
+  assert(normalized.message === "Waiting for your input");
 });
 
 test("notification source normalizer canonicalizes source-prefixed stop titles", () => {
