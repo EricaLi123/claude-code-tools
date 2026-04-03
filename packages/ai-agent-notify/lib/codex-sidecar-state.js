@@ -2,6 +2,12 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 
+const {
+  countCommonSegments,
+  normalizeWindowsPath,
+  splitWindowsPath,
+} = require("./windows-paths");
+
 const SIDECAR_STATE_DIR = path.join(os.tmpdir(), "ai-agent-notify", "codex-mcp-sidecar");
 const STALE_UNRESOLVED_RECORD_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 const STALE_RESOLVED_RECORD_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
@@ -275,33 +281,6 @@ function compareProjectDirFallbackCandidates(left, right) {
     parseTime(right.record.updatedAt) - parseTime(left.record.updatedAt) ||
     parseTime(right.record.startedAt) - parseTime(left.record.startedAt)
   );
-}
-
-function normalizeWindowsPath(value) {
-  try {
-    return path.resolve(value || "").replace(/\//g, "\\").toLowerCase();
-  } catch {
-    return String(value || "")
-      .replace(/\//g, "\\")
-      .toLowerCase();
-  }
-}
-
-function splitWindowsPath(value) {
-  return String(value || "")
-    .split("\\")
-    .filter(Boolean);
-}
-
-function countCommonSegments(left, right) {
-  const max = Math.min(left.length, right.length);
-  let count = 0;
-
-  while (count < max && left[count] === right[count]) {
-    count += 1;
-  }
-
-  return count;
 }
 
 module.exports = {

@@ -1,10 +1,8 @@
-﻿# Notification Script 鈥?Native WinRT Toast (zero module dependencies)
-# Toast fires FIRST (fast), then window detection + flash (slower)
-#
-# All hook data (event, session_id, log file path, hwnd) is passed via environment
-# variables by cli.js, which reads stdin once before spawning this script.
+# Native WinRT toast sender with no extra PowerShell modules.
+# The toast is sent first, then any window/taskbar hinting happens afterwards.
+# cli.js resolves the payload once and passes notify inputs through env vars.
 
-# log 璺緞鐢?cli.js 璁＄畻骞朵紶鍏?
+# cli.js computes and passes the log file path.
 $LogFile = $env:TOAST_NOTIFY_LOG_FILE
 function Write-Log($msg) {
     $line = "[$((Get-Date).ToString('o'))] [ps1 pid=$PID] $msg"
@@ -14,11 +12,11 @@ function Write-Log($msg) {
 
 Write-Log "started"
 
-# isDev 鐢?cli.js 閫氳繃鐜鍙橀噺浼犲叆
+# cli.js passes the dev/prod marker through the environment.
 $isDev = $env:TOAST_NOTIFY_IS_DEV -ne "0"
 $source = if ($env:TOAST_NOTIFY_SOURCE) { $env:TOAST_NOTIFY_SOURCE } else { '' }
 
-# 1. 浠?cli.js 浼犲叆鐨勭幆澧冨彉閲忕‘瀹氶€氱煡鏍囬鍜屽唴瀹?
+# 1. Resolve title/message from the env vars prepared by cli.js.
 $eventName = if ($env:TOAST_NOTIFY_EVENT) { $env:TOAST_NOTIFY_EVENT } else { '' }
 $baseTitle = if ($env:TOAST_NOTIFY_TITLE) { $env:TOAST_NOTIFY_TITLE } else { '' }
 $message = if ($env:TOAST_NOTIFY_MESSAGE) { $env:TOAST_NOTIFY_MESSAGE } else { '' }
@@ -65,14 +63,14 @@ if ($source) {
 $Message = $message
 Write-Log "source=$source event=$eventName title=$Title message=$Message"
 
-# 2. 绐楀彛妫€娴?
+# 2. Capture window metadata when available.
 $hwnd            = $null
 $terminalName    = 'Terminal'
 $terminalExePath = $null
 
-# 3a. 浼樺厛浣跨敤 cli.js 棰勫厛鎵惧ソ鐨?hwnd锛堥€氳繃 find-hwnd.ps1 鍦?Node 渚ф煡鐖堕摼寰楀埌锛夈€?
-# 杩欐牱鍙互缁曡繃 MSYS2 鏂摼闂锛歡it bash 閲?PowerShell 鑷韩鐨勭埗閾捐蛋涓嶅埌缂栬緫鍣ㄧ獥鍙ｏ紝
-# 浣?Node 渚х湅鍒扮殑鐖惰繘绋嬮摼浠嶇劧鏇村畬鏁达紝鑳芥洿绋冲畾鍛戒腑鐪熷疄缁堢绐楀彛銆?
+# Prefer the HWND already resolved by cli.js. Node-side parent-chain lookup is
+# more reliable than rediscovering the terminal from PowerShell in Git Bash /
+# MSYS2-flavored launch chains.
 if ($env:TOAST_NOTIFY_HWND) {
     $hwnd = [IntPtr][long]$env:TOAST_NOTIFY_HWND
     try {
@@ -85,8 +83,10 @@ if ($env:TOAST_NOTIFY_HWND) {
 
 Write-Log "hwnd=$hwnd terminal=$terminalName"
 
-# 鍚堟垚閫氱煡鍥炬爣锛氬簳灞?exe 鍥炬爣 + 涓婂眰闈欐€佺鍙?PNG
-# 缂撳瓨鍒?scripts/icons-cache/{iconKey}-{exeSlug}.png锛宯pm install 閲嶅缓鍖呯洰褰曟椂闅忎箣娓呯┖
+# Compose the final toast icon as:
+#   terminal exe icon + static overlay icon
+# Cache output under .cache/{iconKey}-{exeSlug}.png so reinstalling the package
+# naturally clears stale generated icons.
 function Get-NotifyIcon($iconKey, $exePath) {
     $staticIcon = [System.IO.Path]::GetFullPath([System.IO.Path]::Combine($PSScriptRoot, "..", "assets", "icons", "$iconKey.png"))
     if (-not ($exePath -and (Test-Path $exePath))) { return $staticIcon }
@@ -104,7 +104,7 @@ function Get-NotifyIcon($iconKey, $exePath) {
         $g.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
         $g.Clear([System.Drawing.Color]::Transparent)
 
-        # 搴曞眰锛歟xe 鍥炬爣閾烘弧鐢诲竷
+        # Draw the terminal/app icon first.
         $appIcon = [System.Drawing.Icon]::ExtractAssociatedIcon($exePath)
         if ($appIcon) {
             $appBmp = $appIcon.ToBitmap()
@@ -113,7 +113,7 @@ function Get-NotifyIcon($iconKey, $exePath) {
             $appBmp.Dispose()
         }
 
-        # 涓婂眰锛氬彔鍔犻潤鎬佺鍙?PNG
+        # Then overlay the static notify glyph.
         $overlay = [System.Drawing.Bitmap]::new($staticIcon)
         $g.DrawImage($overlay, [System.Drawing.Rectangle]::new(0, 0, 48, 48))
         $overlay.Dispose()
@@ -137,14 +137,14 @@ $iconKey = switch ($eventName) {
 }
 $iconPath = Get-NotifyIcon $iconKey $terminalExePath
 
-# 3. 鏋勫缓 toast 閫氱煡鍐呭
-# dev 鐗堟湰鍦ㄦ爣棰樺墠娣诲姞 [DEV] 鏍囪
+# 3. Build the toast payload.
+# Dev builds prepend [DEV] to the toast title.
 $devMarker = if ($isDev) { "[DEV] " } else { "" }
 $notificationTitle = "$devMarker$Title ($terminalName)"
 $escapedTitle = [System.Security.SecurityElement]::Escape($notificationTitle)
 $escapedMessage = [System.Security.SecurityElement]::Escape($Message)
 
-# 鍥炬爣 XML锛堣矾寰勬棤鏁堟椂涓虹┖瀛楃涓诧紝淇濊瘉闄嶇骇瀹夊叏锛?
+# Keep the icon optional so the toast still degrades safely if the path fails.
 $iconXml = ''
 if ($iconPath -and (Test-Path $iconPath)) {
     $uriPath = $iconPath.Replace('\', '/')
@@ -152,7 +152,7 @@ if ($iconPath -and (Test-Path $iconPath)) {
     $iconXml = "<image placement=`"appLogoOverride`" src=`"$escapedIconSrc`"/>"
 }
 
-# 4. 鍙戦€?toast 閫氱煡
+# 4. Send the toast.
 try {
     [Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] | Out-Null
     [Windows.Data.Xml.Dom.XmlDocument, Windows.Data.Xml.Dom, ContentType = WindowsRuntime] | Out-Null
@@ -177,7 +177,7 @@ try {
     Write-Log "toast sent: $notificationTitle"
 } catch { Write-Log "toast failed: $_" }
 
-# 5. 浠诲姟鏍忛棯鐑?
+# 5. Flash the taskbar button when we know the source HWND.
 if ($hwnd) {
     try {
         Add-Type -TypeDefinition 'using System; using System.Runtime.InteropServices; public class FlashW { [DllImport("user32.dll")] public static extern bool FlashWindowEx(ref FLASHWINFO p); [StructLayout(LayoutKind.Sequential)] public struct FLASHWINFO { public uint cbSize; public IntPtr hwnd; public uint dwFlags; public uint uCount; public uint dwTimeout; } }' -ErrorAction SilentlyContinue

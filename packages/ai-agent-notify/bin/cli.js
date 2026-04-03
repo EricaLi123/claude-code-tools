@@ -1,29 +1,36 @@
 #!/usr/bin/env node
 
-const { spawn, spawnSync } = require("child_process");
+const { spawn } = require("child_process");
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
 const readline = require("readline");
 const { StringDecoder } = require("string_decoder");
 const {
+  parseRolloutTimestampFromPath,
+  pickSidecarSessionCandidate,
+  resolveSidecarSessionCandidate: resolveSidecarSessionCandidateCore,
+  startSidecarSessionResolver,
+} = require("../lib/codex-sidecar-resolver");
+const {
   findSidecarTerminalContextForProjectDir,
   findSidecarTerminalContextForSession,
   writeSidecarRecord,
 } = require("../lib/codex-sidecar-state");
+const {
+  LOG_DIR,
+  createNeutralTerminalContext,
+  createRuntime,
+  detectTerminalContext,
+  emitNotification,
+  findParentInfo,
+} = require("../lib/notify-runtime");
 const {
   createNotificationSpec,
   normalizeIncomingNotification,
 } = require("../lib/notification-sources");
 
 const PACKAGE_VERSION = readPackageVersion();
-const LOG_DIR = path.join(os.tmpdir(), "ai-agent-notify");
-const LOG_FILE_PREFIX = "ai-agent-notify";
-const IS_DEV = !fs.existsSync(path.join(__dirname, "..", ".published"));
-const SIDECAR_SESSION_RESOLUTION_POLL_MS = 1000;
-const SIDECAR_SESSION_RESOLUTION_TIMEOUT_MS = 90 * 1000;
-const SIDECAR_SESSION_RESOLUTION_MAX_PAST_MS = 30 * 1000;
-const SIDECAR_SESSION_RESOLUTION_MAX_FUTURE_MS = 10 * 60 * 1000;
 const CODEX_APPROVAL_NOTIFY_GRACE_MS = 1000;
 const CODEX_READ_ONLY_APPROVAL_NOTIFY_GRACE_MS = 5 * 1000;
 const CODEX_APPROVAL_BATCH_WINDOW_MS = 500;
@@ -353,6 +360,7 @@ async function runCodexMcpSidecarMode(argv) {
     },
     sessionsDir,
     log: runtime.log,
+    findCandidate: resolveSidecarSessionCandidate,
   });
 
   let cleanedUp = false;
@@ -381,249 +389,6 @@ async function runCodexMcpSidecarMode(argv) {
     await Promise.all([serveMinimalMcpServer({ runtime }), resolver.done]);
   } finally {
     cleanup();
-  }
-}
-
-function startSidecarSessionResolver({ getCurrentRecord, updateRecord, sessionsDir, log }) {
-  let attempts = 0;
-  let interval = null;
-  let stopped = false;
-  let resolveDone = () => {};
-  const done = new Promise((resolve) => {
-    resolveDone = resolve;
-  });
-
-  const tick = () => {
-    if (stopped) {
-      return;
-    }
-
-    const currentRecord = getCurrentRecord();
-    if (!currentRecord || currentRecord.sessionId) {
-      stop();
-      return;
-    }
-
-    attempts += 1;
-    const candidate = resolveSidecarSessionCandidate({
-      cwd: currentRecord.cwd,
-      sessionsDir,
-      startedAtMs: Date.parse(currentRecord.startedAt),
-      log,
-    });
-
-    if (candidate) {
-      const resolvedAt = new Date().toISOString();
-      updateRecord({
-        ...currentRecord,
-        sessionId: candidate.sessionId,
-        resolvedAt,
-      });
-      log(
-        `resolved mcp sidecar sessionId=${candidate.sessionId} file=${candidate.filePath} scoreMs=${candidate.score} reference=${candidate.referenceKind}`
-      );
-      stop();
-      return;
-    }
-
-    if (attempts * SIDECAR_SESSION_RESOLUTION_POLL_MS >= SIDECAR_SESSION_RESOLUTION_TIMEOUT_MS) {
-      log(
-        `mcp sidecar session resolution timed out cwd=${currentRecord.cwd} timeoutMs=${SIDECAR_SESSION_RESOLUTION_TIMEOUT_MS}`
-      );
-      stop();
-    }
-  };
-
-  interval = setInterval(tick, SIDECAR_SESSION_RESOLUTION_POLL_MS);
-  tick();
-
-  return {
-    done,
-    stop,
-  };
-
-  function stop() {
-    if (stopped) {
-      return;
-    }
-    stopped = true;
-    if (interval) {
-      clearInterval(interval);
-      interval = null;
-    }
-    resolveDone();
-  }
-}
-
-function resolveSidecarSessionCandidate({ cwd, sessionsDir, startedAtMs, log }) {
-  if (!cwd || !sessionsDir || !fileExistsCaseInsensitive(sessionsDir)) {
-    return null;
-  }
-
-  const candidates = [];
-
-  listRolloutFiles(sessionsDir, log).forEach((filePath) => {
-    const rolloutStartedAtMs = parseRolloutTimestampFromPath(filePath);
-    let stat = null;
-
-    try {
-      stat = fs.statSync(filePath);
-    } catch {
-      return;
-    }
-
-    const metadata = readRolloutMetadata(filePath, log);
-    if (!metadata.sessionId || !isSameWindowsPath(metadata.cwd, cwd)) {
-      return;
-    }
-
-    const reference = pickBestSidecarCandidateReference(
-      [
-        {
-          kind: "latest_event",
-          timestampMs: metadata.latestEventAtMs,
-        },
-        {
-          kind: "mtime",
-          timestampMs: stat.mtimeMs,
-        },
-        {
-          kind: "rollout_start",
-          timestampMs: rolloutStartedAtMs,
-        },
-      ],
-      startedAtMs
-    );
-    if (!reference) {
-      return;
-    }
-
-    candidates.push({
-      filePath,
-      sessionId: metadata.sessionId,
-      score: reference.score,
-      isFutureMatch: reference.signedDistanceMs >= 0,
-      referenceStartedAtMs: reference.timestampMs,
-      referenceKind: reference.kind,
-    });
-  });
-
-  return pickSidecarSessionCandidate(candidates);
-}
-
-function pickBestSidecarCandidateReference(references, startedAtMs) {
-  if (!Array.isArray(references) || !startedAtMs) {
-    return null;
-  }
-
-  const priority = {
-    latest_event: 3,
-    mtime: 2,
-    rollout_start: 1,
-  };
-
-  const candidates = references
-    .filter(
-      (reference) =>
-        reference &&
-        reference.timestampMs &&
-        isSidecarResolutionTimeMatch({
-          candidateStartedAtMs: reference.timestampMs,
-          sidecarStartedAtMs: startedAtMs,
-        })
-    )
-    .map((reference) => ({
-      kind: reference.kind,
-      timestampMs: reference.timestampMs,
-      signedDistanceMs: reference.timestampMs - startedAtMs,
-      score: Math.abs(reference.timestampMs - startedAtMs),
-      priority: priority[reference.kind] || 0,
-    }))
-    .sort(
-      (left, right) =>
-        left.score - right.score ||
-        right.priority - left.priority ||
-        Number(right.signedDistanceMs >= 0) - Number(left.signedDistanceMs >= 0)
-    );
-
-  return candidates[0] || null;
-}
-
-function pickSidecarSessionCandidate(candidates) {
-  if (!Array.isArray(candidates) || candidates.length === 0) {
-    return null;
-  }
-
-  const sorted = candidates
-    .slice()
-    .sort(
-      (left, right) =>
-        left.score - right.score ||
-        Number(right.isFutureMatch === true) - Number(left.isFutureMatch === true) ||
-        right.referenceStartedAtMs - left.referenceStartedAtMs ||
-        left.sessionId.localeCompare(right.sessionId)
-    );
-
-  const best = sorted[0];
-  const second = sorted[1];
-  if (!best || best.score > 2 * 60 * 1000) {
-    return null;
-  }
-
-  if (
-    second &&
-    Math.abs(best.score - second.score) < 3000 &&
-    (best.isFutureMatch === second.isFutureMatch || best.isFutureMatch !== true)
-  ) {
-    return null;
-  }
-
-  return best;
-}
-
-function isSidecarResolutionTimeMatch({ candidateStartedAtMs, sidecarStartedAtMs }) {
-  if (!candidateStartedAtMs || !sidecarStartedAtMs) {
-    return false;
-  }
-
-  const signedDistanceMs = candidateStartedAtMs - sidecarStartedAtMs;
-  return (
-    signedDistanceMs >= -SIDECAR_SESSION_RESOLUTION_MAX_PAST_MS &&
-    signedDistanceMs <= SIDECAR_SESSION_RESOLUTION_MAX_FUTURE_MS
-  );
-}
-
-function parseRolloutTimestampFromPath(filePath) {
-  const match = path
-    .basename(filePath)
-    .match(/^rollout-(\d{4}-\d{2}-\d{2})T(\d{2})-(\d{2})-(\d{2})-.+\.jsonl$/i);
-
-  if (!match) {
-    return 0;
-  }
-
-  const [, datePart, hourPart, minutePart, secondPart] = match;
-  const parsed = new Date(
-    `${datePart}T${hourPart}:${minutePart}:${secondPart}`
-  ).getTime();
-  return Number.isFinite(parsed) ? parsed : 0;
-}
-
-function isSameWindowsPath(left, right) {
-  if (!left || !right) {
-    return false;
-  }
-
-  return normalizeWindowsPath(left) === normalizeWindowsPath(right);
-}
-
-function normalizeWindowsPath(value) {
-  try {
-    return path.resolve(value).replace(/\//g, "\\").toLowerCase();
-  } catch {
-    return String(value || "")
-      .replace(/\//g, "\\")
-      .toLowerCase();
   }
 }
 
@@ -731,26 +496,6 @@ function writeMcpError(id, code, message) {
       },
     })}\n`
   );
-}
-
-function createRuntime(logId) {
-  fs.mkdirSync(LOG_DIR, { recursive: true });
-  const normalizedLogId = String(logId || "unknown").replace(/[^A-Za-z0-9._-]+/g, "-");
-  const logFile = path.join(LOG_DIR, `${LOG_FILE_PREFIX}-${normalizedLogId}.log`);
-
-  function log(message) {
-    const line = `[${new Date().toISOString()}] [node pid=${process.pid}] ${message}\n`;
-    process.stderr.write(line);
-    try {
-      fs.appendFileSync(logFile, line);
-    } catch {}
-  }
-
-  return {
-    isDev: IS_DEV,
-    logFile,
-    log,
-  };
 }
 
 function readPackageVersion() {
@@ -977,25 +722,8 @@ function getCodexHomeDir() {
   return process.env.CODEX_HOME || path.join(os.homedir(), ".codex");
 }
 
-function createNeutralTerminalContext() {
-  return {
-    hwnd: null,
-    shellPid: null,
-    isWindowsTerminal: false,
-  };
-}
-
 function stripUtf8Bom(value) {
   return typeof value === "string" ? value.replace(/^\uFEFF/, "") : value;
-}
-
-function getExplicitShellPid(argv) {
-  const raw =
-    getArgValue(argv, "--shell-pid") ||
-    getEnvFirst(["TOAST_NOTIFY_SHELL_PID"]) ||
-    "";
-  const pid = parseInt(raw, 10);
-  return Number.isInteger(pid) && pid > 0 ? pid : null;
 }
 
 function fileExistsCaseInsensitive(targetPath) {
@@ -1132,6 +860,15 @@ function readRolloutMetadata(filePath, log) {
   }
 
   return result;
+}
+
+function resolveSidecarSessionCandidate(args) {
+  return resolveSidecarSessionCandidateCore({
+    ...args,
+    fileExistsCaseInsensitive,
+    listRolloutFiles,
+    readRolloutMetadata,
+  });
 }
 
 function consumeRolloutMetadataChunk(result, buffer, preferLatestTurnContext) {
@@ -2981,235 +2718,6 @@ function pruneEmittedEventKeys(emittedEventKeys, maxSize) {
     }
     emittedEventKeys.delete(firstKey.value);
   }
-}
-
-function detectShellPid(log) {
-  const detectScript = path.join(__dirname, "..", "scripts", "get-shell-pid.ps1");
-  const result = spawnSync(
-    "powershell",
-    [
-      "-NoProfile",
-      "-ExecutionPolicy",
-      "Bypass",
-      "-File",
-      detectScript,
-      "-StartPid",
-      String(process.pid),
-    ],
-    { encoding: "utf8" }
-  );
-
-  writeChildStderr(result, log);
-
-  const pid = parseInt((result.stdout || "").trim(), 10);
-  return Number.isInteger(pid) && pid > 0 ? pid : null;
-}
-
-function findParentInfo(log) {
-  const findScript = path.join(__dirname, "..", "scripts", "find-hwnd.ps1");
-  const result = spawnSync(
-    "powershell",
-    [
-      "-NoProfile",
-      "-ExecutionPolicy",
-      "Bypass",
-      "-File",
-      findScript,
-      "-StartPid",
-      String(process.pid),
-      "-IncludeShellPid",
-    ],
-    { encoding: "utf8" }
-  );
-
-  writeChildStderr(result, log);
-
-  const parts = (result.stdout || "").trim().split("|");
-  const hwnd = parseInt(parts[0], 10);
-  const shellPid = parseInt(parts[1], 10);
-  const isWindowsTerminal = parts[2] === "1";
-
-  return {
-    hwnd: hwnd > 0 ? hwnd : null,
-    shellPid: shellPid > 0 ? shellPid : null,
-    isWindowsTerminal,
-  };
-}
-
-function detectTerminalContext(argv, log) {
-  const parentInfo = findParentInfo(log);
-  const shellPid = getExplicitShellPid(argv) || detectShellPid(log) || parentInfo.shellPid;
-
-  if (!shellPid) {
-    log("no shell pid detected; tab color watcher disabled");
-  }
-
-  return {
-    hwnd: parentInfo.hwnd,
-    shellPid,
-    isWindowsTerminal: parentInfo.isWindowsTerminal,
-  };
-}
-
-function emitNotification({ source, eventName, title, message, rawEventType, runtime, terminal }) {
-  const envVars = {
-    PATH: process.env.PATH || "",
-    PATHEXT: process.env.PATHEXT || "",
-    TOAST_NOTIFY_EVENT: eventName,
-    TOAST_NOTIFY_IS_DEV: runtime.isDev ? "1" : "0",
-    TOAST_NOTIFY_LOG_FILE: runtime.logFile,
-  };
-
-  if (source) {
-    envVars.TOAST_NOTIFY_SOURCE = source;
-  }
-
-  if (title) {
-    envVars.TOAST_NOTIFY_TITLE = title;
-  }
-
-  if (message) {
-    envVars.TOAST_NOTIFY_MESSAGE = message;
-  }
-
-  if (rawEventType) {
-    envVars.TOAST_NOTIFY_RAW_EVENT = rawEventType;
-  }
-
-  if (terminal.hwnd) {
-    envVars.TOAST_NOTIFY_HWND = String(terminal.hwnd);
-  }
-
-  writeWindowsTerminalColor(eventName, terminal, runtime.log);
-  startTabColorWatcher({
-    eventName,
-    runtime,
-    terminal,
-  });
-
-  const scriptPath = path.join(__dirname, "..", "scripts", "notify.ps1");
-  return spawn(
-    "powershell",
-    ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", scriptPath],
-    { stdio: ["ignore", "inherit", "inherit"], env: envVars }
-  );
-}
-
-function writeWindowsTerminalColor(eventName, terminal, log) {
-  if (!terminal || !terminal.isWindowsTerminal) {
-    return;
-  }
-
-  const colorMap = {
-    Stop: "rgb:33/cc/33",
-    PermissionRequest: "rgb:ff/99/00",
-    InputRequest: "rgb:ff/99/00",
-  };
-  const tabColor = colorMap[eventName];
-
-  if (!tabColor) {
-    return;
-  }
-
-  const oscSet = `\x1b]4;264;${tabColor}\x1b\\`;
-
-  try {
-    if (process.stdout && !process.stdout.destroyed) {
-      process.stdout.write(oscSet);
-    }
-    if (process.stderr && !process.stderr.destroyed) {
-      process.stderr.write(oscSet);
-    }
-  } catch (error) {
-    log(`initial tab color write failed: ${error.message}`);
-  }
-}
-
-function startTabColorWatcher({ eventName, runtime, terminal }) {
-  if (!terminal.isWindowsTerminal) {
-    return;
-  }
-
-  if (!terminal.shellPid) {
-    runtime.log("tab color watcher not started because no shell pid was detected");
-    return;
-  }
-
-  try {
-    const launcherScript = path.join(
-      __dirname,
-      "..",
-      "scripts",
-      "start-tab-color-watcher.ps1"
-    );
-    const watcherPidFile = path.join(
-      LOG_DIR,
-      `watcher-${process.pid}-${Date.now()}.pid`
-    );
-    const result = spawnSync(
-      "powershell",
-      [
-        "-NoProfile",
-        "-ExecutionPolicy",
-        "Bypass",
-        "-File",
-        launcherScript,
-        "-TargetPid",
-        String(terminal.shellPid),
-        "-HookEvent",
-        eventName,
-        ...(terminal.hwnd ? ["-TerminalHwnd", String(terminal.hwnd)] : []),
-        "-WatcherPidFile",
-        watcherPidFile,
-      ],
-      {
-        stdio: ["ignore", "ignore", "ignore"],
-        env: {
-          ...process.env,
-          TOAST_NOTIFY_LOG_FILE: runtime.logFile,
-        },
-      }
-    );
-
-    if (result.error) {
-      throw result.error;
-    }
-
-    const watcherPidRaw = fs.existsSync(watcherPidFile)
-      ? fs.readFileSync(watcherPidFile, "utf8").trim()
-      : "";
-
-    try {
-      if (fs.existsSync(watcherPidFile)) {
-        fs.unlinkSync(watcherPidFile);
-      }
-    } catch {}
-
-    const watcherPid = parseInt(watcherPidRaw, 10);
-    if (result.status === 0 && Number.isInteger(watcherPid) && watcherPid > 0) {
-      runtime.log(
-        `tab-color-watcher spawned pid=${watcherPid} shellPid=${terminal.shellPid}`
-      );
-    } else {
-      runtime.log(
-        `tab-color-watcher launcher exited status=${result.status} without child pid shellPid=${terminal.shellPid}`
-      );
-    }
-  } catch (error) {
-    runtime.log(`tab-color-watcher spawn failed: ${error.message}`);
-  }
-}
-
-function writeChildStderr(result, log) {
-  if (!result || !result.stderr) {
-    return;
-  }
-
-  result.stderr
-    .trim()
-    .split(/\r?\n/)
-    .filter(Boolean)
-    .forEach((line) => log(line));
 }
 
 function safeStringify(value) {
