@@ -1,5 +1,5 @@
 module.exports = function runStructureAndRuntimeTests(h) {
-  const { assert, fs, notifyRuntime, path, read, ROOT, section, test, windowsPaths } = h;
+  const { assert, fs, normalizeTestPath, notifyRuntime, path, read, ROOT, section, test, windowsPaths } = h;
 
   section("File structure");
 
@@ -179,6 +179,27 @@ module.exports = function runStructureAndRuntimeTests(h) {
     assert(notifyRuntime.LOG_FILE_PREFIX === "ai-agent-notify");
     assert(notifyRuntimeContent.includes('const LOG_FILE_PREFIX = "ai-agent-notify"'));
     assert(notifyRuntimeContent.includes('`${LOG_FILE_PREFIX}-${normalizedLogId}.log`'));
+  });
+
+  test("createRuntime exposes build identity for linked local debugging", () => {
+    const runtime = notifyRuntime.createRuntime(`build-info-${process.pid}-${Date.now()}`);
+
+    try {
+      runtime.log("build identity test");
+      const logContent = fs.readFileSync(runtime.logFile, "utf8");
+
+      assert(runtime.buildInfo.version === pkg.version);
+      assert(normalizeTestPath(runtime.buildInfo.packageRoot) === normalizeTestPath(ROOT));
+      assert(runtime.buildInfo.installKind === "workspace");
+      assert(runtime.buildInfo.sourceFingerprint.length === 12);
+      assert(logContent.includes(`ver=${runtime.buildInfo.version}`));
+      assert(logContent.includes(`src=${runtime.buildInfo.sourceFingerprint}`));
+      assert(logContent.includes(`install=${runtime.buildInfo.installKind}`));
+    } finally {
+      try {
+        fs.unlinkSync(runtime.logFile);
+      } catch {}
+    }
   });
 
   test("sidecar matching and persistence are split by responsibility", () => {

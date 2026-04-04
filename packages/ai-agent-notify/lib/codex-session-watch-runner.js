@@ -65,7 +65,7 @@ async function runCodexSessionWatchMode(argv) {
   let shuttingDown = false;
 
   runtime.log(
-    `started mode=codex-session-watch sessionsDir=${sessionsDir} tuiLogPath=${tuiLogPath} pollMs=${pollMs}`
+    `started mode=codex-session-watch sessionsDir=${sessionsDir} tuiLogPath=${tuiLogPath} pollMs=${pollMs} packageRoot=${runtime.buildInfo.packageRoot}`
   );
   runtime.log(`acquired single-instance lock file=${instanceLock.lockPath}`);
 

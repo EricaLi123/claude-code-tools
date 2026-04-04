@@ -1,3 +1,4 @@
+const crypto = require("crypto");
 const { spawn, spawnSync } = require("child_process");
 const fs = require("fs");
 const os = require("os");
@@ -12,7 +13,13 @@ const {
 
 const LOG_DIR = path.join(os.tmpdir(), "ai-agent-notify");
 const LOG_FILE_PREFIX = "ai-agent-notify";
-const IS_DEV = !fs.existsSync(path.join(__dirname, "..", ".published"));
+const PACKAGE_ROOT = path.join(__dirname, "..");
+const PACKAGE_JSON_PATH = path.join(PACKAGE_ROOT, "package.json");
+const PUBLISHED_MARKER_PATH = path.join(PACKAGE_ROOT, ".published");
+const BUILD_FINGERPRINT_ROOTS = ["package.json", "bin", "lib", "scripts"];
+const BUILD_FINGERPRINT_EXTENSIONS = new Set([".js", ".json", ".ps1", ".vbs"]);
+const BUILD_INFO = Object.freeze(readBuildInfo());
+const IS_DEV = BUILD_INFO.installKind !== "published";
 
 function createRuntime(logId) {
   fs.mkdirSync(LOG_DIR, { recursive: true });
@@ -20,7 +27,10 @@ function createRuntime(logId) {
   const logFile = path.join(LOG_DIR, `${LOG_FILE_PREFIX}-${normalizedLogId}.log`);
 
   function log(message) {
-    const line = `[${new Date().toISOString()}] [node pid=${process.pid}] ${message}\n`;
+    const line =
+      `[${new Date().toISOString()}] ` +
+      `[node pid=${process.pid} ${BUILD_INFO.logTag}] ` +
+      `${message}\n`;
     process.stderr.write(line);
     try {
       fs.appendFileSync(logFile, line);
@@ -28,10 +38,134 @@ function createRuntime(logId) {
   }
 
   return {
+    buildInfo: BUILD_INFO,
     isDev: IS_DEV,
     logFile,
     log,
   };
+}
+
+function readBuildInfo() {
+  const packageJson = readPackageJson();
+  const version = packageJson.version || "0.0.0";
+  const packageName = packageJson.name || "ai-agent-notify";
+  const installKind = fs.existsSync(PUBLISHED_MARKER_PATH) ? "published" : "workspace";
+  const gitCommit = readGitCommit();
+  const gitDirty = readGitDirtyState();
+  const sourceFingerprint = computeSourceFingerprint();
+
+  return {
+    packageName,
+    packageRoot: PACKAGE_ROOT,
+    version,
+    installKind,
+    gitCommit,
+    gitDirty,
+    sourceFingerprint,
+    logTag:
+      `ver=${version} ` +
+      `git=${gitCommit} ` +
+      `dirty=${gitDirty} ` +
+      `src=${sourceFingerprint} ` +
+      `install=${installKind}`,
+  };
+}
+
+function readPackageJson() {
+  try {
+    return JSON.parse(fs.readFileSync(PACKAGE_JSON_PATH, "utf8"));
+  } catch {
+    return {};
+  }
+}
+
+function readGitCommit() {
+  const result = runGitCommand(["rev-parse", "--short=12", "HEAD"]);
+  if (!result.ok) {
+    return "unknown";
+  }
+
+  const commit = result.stdout.trim();
+  return commit || "unknown";
+}
+
+function readGitDirtyState() {
+  const result = runGitCommand([
+    "status",
+    "--short",
+    "--untracked-files=all",
+    "--",
+    "package.json",
+    "bin",
+    "lib",
+    "scripts",
+  ]);
+  if (!result.ok) {
+    return "unknown";
+  }
+  return result.stdout.trim() ? "1" : "0";
+}
+
+function runGitCommand(args) {
+  try {
+    const result = spawnSync("git", args, {
+      cwd: PACKAGE_ROOT,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+      windowsHide: true,
+    });
+
+    return {
+      ok: result.status === 0 && !result.error,
+      stdout: result.stdout || "",
+    };
+  } catch {
+    return { ok: false, stdout: "" };
+  }
+}
+
+function computeSourceFingerprint() {
+  const hash = crypto.createHash("sha1");
+  const files = listFingerprintFiles();
+
+  files.forEach((filePath) => {
+    const relativePath = path.relative(PACKAGE_ROOT, filePath).replace(/\\/g, "/");
+    hash.update(relativePath);
+    hash.update("\0");
+    hash.update(fs.readFileSync(filePath));
+    hash.update("\0");
+  });
+
+  return hash.digest("hex").slice(0, 12);
+}
+
+function listFingerprintFiles() {
+  const files = [];
+
+  BUILD_FINGERPRINT_ROOTS.forEach((relativePath) => {
+    const absolutePath = path.join(PACKAGE_ROOT, relativePath);
+    collectFingerprintFiles(absolutePath, files);
+  });
+
+  return files.sort((left, right) => left.localeCompare(right));
+}
+
+function collectFingerprintFiles(targetPath, files) {
+  if (!fs.existsSync(targetPath)) {
+    return;
+  }
+
+  const stat = fs.statSync(targetPath);
+  if (stat.isDirectory()) {
+    fs.readdirSync(targetPath)
+      .sort((left, right) => left.localeCompare(right))
+      .forEach((entry) => collectFingerprintFiles(path.join(targetPath, entry), files));
+    return;
+  }
+
+  if (BUILD_FINGERPRINT_EXTENSIONS.has(path.extname(targetPath).toLowerCase())) {
+    files.push(targetPath);
+  }
 }
 
 function emitNotification({ source, eventName, title, message, rawEventType, runtime, terminal }) {
@@ -179,6 +313,7 @@ function startTabColorWatcher({ eventName, runtime, terminal }) {
 }
 
 module.exports = {
+  BUILD_INFO,
   LOG_DIR,
   LOG_FILE_PREFIX,
   createNeutralTerminalContext,

@@ -33,7 +33,7 @@ async function runCodexMcpSidecarMode({ argv, cliPath, packageVersion }) {
   });
 
   runtime.log(
-    `started mode=codex-mcp-sidecar cwd=${sidecarRecord.cwd} shellPid=${sidecarRecord.shellPid || ""} hwnd=${sidecarRecord.hwnd || ""} sessionsDir=${sessionsDir}`
+    `started mode=codex-mcp-sidecar cwd=${sidecarRecord.cwd} shellPid=${sidecarRecord.shellPid || ""} hwnd=${sidecarRecord.hwnd || ""} sessionsDir=${sessionsDir} packageRoot=${runtime.buildInfo.packageRoot}`
   );
 
   const resolver = startSidecarSessionResolver({

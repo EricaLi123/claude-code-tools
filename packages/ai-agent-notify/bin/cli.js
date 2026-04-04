@@ -100,7 +100,7 @@ async function runDefaultNotifyMode(argv) {
   const terminal = detectTerminalContext(argv, runtime.log);
 
   runtime.log(
-    `started mode=notify source=${notification.sourceId} transport=${notification.transport || "none"} session=${sessionId}`
+    `started mode=notify source=${notification.sourceId} transport=${notification.transport || "none"} session=${sessionId} packageRoot=${runtime.buildInfo.packageRoot}`
   );
   runtime.log(notification.debugSummary);
 
