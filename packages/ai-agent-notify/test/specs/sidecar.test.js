@@ -204,6 +204,40 @@ module.exports = function runSidecarTests(h) {
     }
   });
 
+  test("sidecar prune deletes stale unresolved records based on stored timestamps", () => {
+    const recordId = `test-sidecar-stale-unresolved-${process.pid}-${Date.now()}`;
+    const recordPath = path.join(sidecarState.getSidecarStateDir(), `${recordId}.json`);
+    const oldIso = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString();
+
+    try {
+      sidecarState.writeSidecarRecord({
+        recordId,
+        pid: 999999,
+        parentPid: process.ppid,
+        cwd: TEST_PROJECT_DIR,
+        sessionId: "",
+        startedAt: oldIso,
+        resolvedAt: "",
+        hwnd: 5432,
+        shellPid: 6543,
+        isWindowsTerminal: true,
+      });
+
+      const persisted = JSON.parse(fs.readFileSync(recordPath, "utf8"));
+      persisted.startedAt = oldIso;
+      persisted.updatedAt = oldIso;
+      persisted.resolvedAt = "";
+      persisted.lastMatchedAt = "";
+      fs.writeFileSync(recordPath, JSON.stringify(persisted, null, 2), "utf8");
+
+      sidecarState.pruneStaleSidecarRecords();
+
+      assert(!fs.existsSync(recordPath), "expected stale unresolved record to be deleted");
+    } finally {
+      sidecarState.deleteSidecarRecord(recordId);
+    }
+  });
+
   test("sidecar prune keeps older exact session records for long-lived sessions", () => {
     const recordId = `test-sidecar-long-session-${process.pid}-${Date.now()}`;
     const sessionId = `test-session-long-${Date.now()}`;

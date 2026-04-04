@@ -13,7 +13,7 @@ function getSidecarStateDir() {
 }
 
 function writeSidecarRecord(record) {
-  const normalized = normalizeRecord(record);
+  const normalized = normalizeRecordForWrite(record);
   fs.mkdirSync(SIDECAR_STATE_DIR, { recursive: true });
 
   const recordPath = getSidecarRecordPath(normalized.recordId);
@@ -60,7 +60,7 @@ function readAllSidecarRecords(log) {
     const recordPath = path.join(SIDECAR_STATE_DIR, entry.name);
     try {
       const raw = fs.readFileSync(recordPath, "utf8");
-      records.push(normalizeRecord(JSON.parse(raw)));
+      records.push(normalizeStoredRecord(JSON.parse(raw)));
     } catch (error) {
       if (typeof log === "function") {
         log(`sidecar state parse failed file=${recordPath} error=${error.message}`);
@@ -92,8 +92,24 @@ function getSidecarRecordPath(recordId) {
   return path.join(SIDECAR_STATE_DIR, `${safeId}.json`);
 }
 
-function normalizeRecord(record) {
+function normalizeRecordForWrite(record) {
   const now = new Date().toISOString();
+  const normalized = normalizeSidecarRecordShape(record);
+
+  normalized.startedAt = normalized.startedAt || now;
+  normalized.updatedAt = now;
+  return normalized;
+}
+
+function normalizeStoredRecord(record) {
+  const normalized = normalizeSidecarRecordShape(record);
+
+  normalized.startedAt = normalized.startedAt || normalized.resolvedAt || normalized.updatedAt || "";
+  normalized.updatedAt = normalized.updatedAt || normalized.lastMatchedAt || normalized.resolvedAt || normalized.startedAt || "";
+  return normalized;
+}
+
+function normalizeSidecarRecordShape(record) {
   const normalized = record && typeof record === "object" ? { ...record } : {};
 
   normalized.recordId = String(normalized.recordId || `${process.pid}`);
@@ -105,8 +121,8 @@ function normalizeRecord(record) {
   normalized.isWindowsTerminal = normalized.isWindowsTerminal === true;
   normalized.cwd = typeof normalized.cwd === "string" ? normalized.cwd : "";
   normalized.sessionId = typeof normalized.sessionId === "string" ? normalized.sessionId : "";
-  normalized.startedAt = typeof normalized.startedAt === "string" ? normalized.startedAt : now;
-  normalized.updatedAt = now;
+  normalized.startedAt = typeof normalized.startedAt === "string" ? normalized.startedAt : "";
+  normalized.updatedAt = typeof normalized.updatedAt === "string" ? normalized.updatedAt : "";
   normalized.resolvedAt =
     typeof normalized.resolvedAt === "string" ? normalized.resolvedAt : "";
   normalized.lastMatchedAt =
