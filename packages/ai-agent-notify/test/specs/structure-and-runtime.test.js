@@ -11,7 +11,9 @@ module.exports = function runStructureAndRuntimeTests(h) {
     "lib/codex-approval-pending.js",
     "lib/codex-approval-session-grants.js",
     "lib/codex-approval-state.js",
+    "lib/codex-sidecar-matcher.js",
     "lib/codex-sidecar-resolver.js",
+    "lib/codex-sidecar-store.js",
     "lib/codex-sidecar-state.js",
     "lib/codex-session-event-descriptors.js",
     "lib/codex-session-events.js",
@@ -24,6 +26,7 @@ module.exports = function runStructureAndRuntimeTests(h) {
     "lib/notification-source-display.js",
     "lib/notification-source-parsers.js",
     "lib/notification-sources.js",
+    "lib/notify-terminal-context.js",
     "lib/notify-runtime.js",
     "lib/shell-command-analysis.js",
     "lib/shared-utils.js",
@@ -73,8 +76,11 @@ module.exports = function runStructureAndRuntimeTests(h) {
   const approvalRulesContent = read("lib/codex-approval-rules.js");
   const approvalSessionGrantsContent = read("lib/codex-approval-session-grants.js");
   const approvalStateContent = read("lib/codex-approval-state.js");
+  const notifyTerminalContextContent = read("lib/notify-terminal-context.js");
   const notifyRuntimeContent = read("lib/notify-runtime.js");
+  const sidecarMatcherContent = read("lib/codex-sidecar-matcher.js");
   const sidecarResolverContent = read("lib/codex-sidecar-resolver.js");
+  const sidecarStoreContent = read("lib/codex-sidecar-store.js");
   const sidecarStateContent = read("lib/codex-sidecar-state.js");
   const sessionEventDescriptorsContent = read("lib/codex-session-event-descriptors.js");
   const sessionEventContent = read("lib/codex-session-events.js");
@@ -109,12 +115,16 @@ module.exports = function runStructureAndRuntimeTests(h) {
   });
 
   test("notify-runtime.js resolves hwnd, shell pid, and spawns watcher through launcher", () => {
-    assert(notifyRuntimeContent.includes("find-hwnd.ps1"));
-    assert(notifyRuntimeContent.includes("get-shell-pid.ps1"));
+    assert(notifyRuntimeContent.includes('require("./notify-terminal-context")'));
+    assert(!notifyRuntimeContent.includes("function detectTerminalContext("));
     assert(notifyRuntimeContent.includes("start-tab-color-watcher.ps1"));
     assert(notifyRuntimeContent.includes("--shell-pid"));
     assert(notifyRuntimeContent.includes("launcher exited status="));
     assert(notifyRuntimeContent.includes("WatcherPidFile"));
+    assert(notifyTerminalContextContent.includes("function detectTerminalContext("));
+    assert(notifyTerminalContextContent.includes("function findParentInfo("));
+    assert(notifyTerminalContextContent.includes("find-hwnd.ps1"));
+    assert(notifyTerminalContextContent.includes("get-shell-pid.ps1"));
   });
 
   test("cli.js routes codex session watcher mode while watch modules own the details", () => {
@@ -166,9 +176,13 @@ module.exports = function runStructureAndRuntimeTests(h) {
   });
 
   test("sidecar modules share Windows path helpers", () => {
-    assert(sidecarStateContent.includes('require("./windows-paths")'));
+    assert(sidecarStateContent.includes('require("./codex-sidecar-matcher")'));
+    assert(sidecarStateContent.includes('require("./codex-sidecar-store")'));
+    assert(!sidecarStateContent.includes("function findSidecarTerminalContextForSession("));
+    assert(sidecarMatcherContent.includes('require("./windows-paths")'));
     assert(!sidecarStateContent.includes("function normalizeWindowsPath("));
     assert(sidecarResolverContent.includes('require("./windows-paths")'));
+    assert(sidecarStoreContent.includes("function writeSidecarRecord("));
   });
 
   test("shared utils centralize argv/env and integer parsing helpers", () => {
