@@ -1,0 +1,284 @@
+name: Publish ai-agent-notify
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "packages/ai-agent-notify/**"
+
+permissions:
+  contents: write
+  id-token: write
+
+concurrency:
+  group: publish-ai-agent-notify-main
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      run_pipeline: ${{ steps.plan.outputs.run_pipeline }}
+      should_publish: ${{ steps.plan.outputs.should_publish }}
+      skip_reason: ${{ steps.plan.outputs.skip_reason }}
+      package_name: ${{ steps.plan.outputs.package_name }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Plan publish conditions
+        id: plan
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          ACTOR: ${{ github.actor }}
+          HEAD_COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+          CURRENT_SHA: ${{ github.sha }}
+        run: |
+          node <<'NODE'
+          const { execFileSync } = require("child_process");
+          const fs = require("fs");
+
+          const packageJson = require("./packages/ai-agent-notify/package.json");
+          const eventName = process.env.EVENT_NAME || "";
+          const actor = process.env.ACTOR || "";
+          const headCommitMessage = process.env.HEAD_COMMIT_MESSAGE || "";
+          const currentSha = process.env.CURRENT_SHA || "";
+          const releasePrefix = "chore(release): ai-agent-notify v";
+
+          function git(args) {
+            return execFileSync("git", args, {
+              encoding: "utf8",
+              stdio: ["ignore", "pipe", "pipe"],
+            }).trim();
+          }
+
+          function setOutput(name, value) {
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, `${name}=${value}\n`);
+          }
+
+          let runPipeline = true;
+          let shouldPublish = false;
+          let skipReason = "";
+
+          if (eventName === "push") {
+            if (actor === "github-actions[bot]") {
+              runPipeline = false;
+              skipReason = "github_actions_bot_push";
+            }
+
+            if (runPipeline && headCommitMessage.includes("[skip publish]")) {
+              runPipeline = false;
+              skipReason = "skip_publish_marker";
+            }
+
+            if (runPipeline && headCommitMessage.startsWith(releasePrefix)) {
+              runPipeline = false;
+              skipReason = "release_commit_prefix";
+            }
+          }
+
+          let remoteMain = "";
+          if (runPipeline) {
+            remoteMain = git(["rev-parse", "origin/main"]);
+            if (currentSha && remoteMain && currentSha !== remoteMain) {
+              runPipeline = false;
+              skipReason = "stale_main_tip";
+            }
+          }
+
+          if (runPipeline) {
+            if (eventName === "push") {
+              shouldPublish = true;
+            }
+          }
+
+          setOutput("run_pipeline", runPipeline ? "true" : "false");
+          setOutput("should_publish", runPipeline && shouldPublish ? "true" : "false");
+          setOutput("skip_reason", skipReason || "none");
+          setOutput("package_name", packageJson.name || "ai-agent-notify");
+          NODE
+
+      - name: Print plan result
+        run: |
+          echo "run_pipeline=${{ steps.plan.outputs.run_pipeline }}"
+          echo "should_publish=${{ steps.plan.outputs.should_publish }}"
+          echo "skip_reason=${{ steps.plan.outputs.skip_reason }}"
+
+  test-windows:
+    needs: plan
+    if: needs.plan.outputs.run_pipeline == 'true'
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: packages/ai-agent-notify
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: packages/ai-agent-notify/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+
+  publish:
+    needs:
+      - plan
+      - test-windows
+    if: needs.plan.outputs.run_pipeline == 'true' && needs.plan.outputs.should_publish == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: packages/ai-agent-notify
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Read package metadata
+        id: package
+        run: |
+          node <<'NODE'
+          const fs = require("fs");
+          const pkg = require("./package.json");
+          fs.appendFileSync(
+            process.env.GITHUB_OUTPUT,
+            `package_name=${pkg.name}\npackage_version=${pkg.version}\n`
+          );
+          NODE
+
+      - name: Read latest published version
+        id: registry
+        env:
+          PACKAGE_NAME: ${{ steps.package.outputs.package_name }}
+        run: |
+          if npm view "${PACKAGE_NAME}" version --registry https://registry.npmjs.org >/tmp/npm-version.txt 2>/dev/null; then
+            echo "published_version=$(cat /tmp/npm-version.txt)" >> "$GITHUB_OUTPUT"
+          else
+            echo "published_version=" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Compute target version
+        id: version
+        env:
+          PUBLISHED_VERSION: ${{ steps.registry.outputs.published_version }}
+          PACKAGE_VERSION: ${{ steps.package.outputs.package_version }}
+        run: |
+          node <<'NODE'
+          const fs = require("fs");
+
+          function parseVersion(input) {
+            const match = String(input || "").trim().match(/^(\d+)\.(\d+)\.(\d+)$/);
+            if (!match) {
+              return null;
+            }
+            return {
+              major: Number(match[1]),
+              minor: Number(match[2]),
+              patch: Number(match[3]),
+            };
+          }
+
+          function compareVersions(left, right) {
+            if (left.major !== right.major) {
+              return left.major - right.major;
+            }
+            if (left.minor !== right.minor) {
+              return left.minor - right.minor;
+            }
+            return left.patch - right.patch;
+          }
+
+          function formatVersion(version) {
+            return `${version.major}.${version.minor}.${version.patch}`;
+          }
+
+          const published = parseVersion(process.env.PUBLISHED_VERSION);
+          const packageVersion = parseVersion(process.env.PACKAGE_VERSION);
+          if (!packageVersion) {
+            throw new Error("Unable to parse package.json version.");
+          }
+
+          let nextVersion = formatVersion(packageVersion);
+          let needsBump = false;
+
+          if (published) {
+            const comparison = compareVersions(packageVersion, published);
+            if (comparison <= 0) {
+              nextVersion = `${published.major}.${published.minor}.${published.patch + 1}`;
+              needsBump = nextVersion !== process.env.PACKAGE_VERSION;
+            }
+          }
+
+          fs.appendFileSync(
+            process.env.GITHUB_OUTPUT,
+            `next_version=${nextVersion}\nneeds_bump=${needsBump ? "true" : "false"}\n`
+          );
+          NODE
+
+      - name: Bump package version
+        if: steps.version.outputs.needs_bump == 'true'
+        env:
+          NEXT_VERSION: ${{ steps.version.outputs.next_version }}
+        run: npm version "$NEXT_VERSION" --no-git-tag-version
+
+      - name: Commit version sync to main
+        if: steps.version.outputs.needs_bump == 'true'
+        env:
+          NEXT_VERSION: ${{ steps.version.outputs.next_version }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json package-lock.json
+          if git diff --cached --quiet; then
+            echo "No package version changes to commit."
+            exit 0
+          fi
+          git commit -m "chore(release): ai-agent-notify v${NEXT_VERSION} [skip publish]"
+          git push origin HEAD:main
+
+      - name: Ensure release tag exists
+        env:
+          TAG_NAME: ai-agent-notify-v${{ steps.version.outputs.next_version }}
+        run: |
+          if git ls-remote --exit-code --tags origin "refs/tags/${TAG_NAME}" >/dev/null 2>&1; then
+            echo "Tag ${TAG_NAME} already exists."
+            exit 0
+          fi
+          git tag "${TAG_NAME}"
+          git push origin "refs/tags/${TAG_NAME}"
+
+      - name: Publish package
+        run: npm publish --provenance --access public
+
+      - name: Create or update GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG_NAME: ai-agent-notify-v${{ steps.version.outputs.next_version }}
+          PACKAGE_NAME: ${{ steps.package.outputs.package_name }}
+          PACKAGE_VERSION: ${{ steps.version.outputs.next_version }}
+        run: |
+          title="${PACKAGE_NAME} v${PACKAGE_VERSION}"
+          notes="Automated release for ${PACKAGE_NAME} v${PACKAGE_VERSION}."
+          if gh release view "${TAG_NAME}" >/dev/null 2>&1; then
+            gh release edit "${TAG_NAME}" --title "${title}" --notes "${notes}"
+          else
+            gh release create "${TAG_NAME}" --title "${title}" --notes "${notes}"
+          fi
