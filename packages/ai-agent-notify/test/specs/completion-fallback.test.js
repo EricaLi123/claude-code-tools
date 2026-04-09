@@ -487,6 +487,7 @@ module.exports = function runCompletionFallbackTests(h) {
     const completionNotify = loadCompletionNotify();
     const emitted = [];
     const fakeChild = { on: () => {} };
+    const runtimeObject = { log: () => {} };
     const didEmit = completionNotify.emitPreparedCodexCompletionNotification({
       prepared: {
         event: {
@@ -502,7 +503,7 @@ module.exports = function runCompletionFallbackTests(h) {
         },
         notificationTerminal: { hwnd: null, shellPid: null, isWindowsTerminal: false },
       },
-      runtime: { log: () => {} },
+      runtime: runtimeObject,
       emittedEventKeys: new Map(),
       origin: "pending",
       emitNotificationImpl: (payload) => {
@@ -514,5 +515,6 @@ module.exports = function runCompletionFallbackTests(h) {
     assert(didEmit === true, "expected fallback emit to return true");
     assert(emitted.length === 1, "expected a single fallback notification emit");
     assert(emitted[0].eventName === "Stop", "expected Stop notification payload");
+    assert(emitted[0].runtime === runtimeObject, "expected runtime object forwarded to notify call");
   });
 };
