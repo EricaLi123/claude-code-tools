@@ -20,9 +20,7 @@ function Resolve-LogFile {
 function Write-Log($msg) {
     $line = "[$((Get-Date).ToString('o'))] [watcher pid=$PID] $msg"
     $logFile = Resolve-LogFile
-    if ($logFile) {
-        try { [System.IO.File]::AppendAllText($logFile, "$line`n") } catch {}
-    }
+    try { [System.IO.File]::AppendAllText($logFile, "$line`n") } catch {}
 }
 
 Write-Log "started TargetPid=$TargetPid HookEvent=$HookEvent TerminalHwnd=$TerminalHwnd"

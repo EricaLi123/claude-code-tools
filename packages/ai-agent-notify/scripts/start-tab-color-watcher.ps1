@@ -14,7 +14,6 @@ function Write-Log($msg) {
     } else {
         $logFile = $env:TOAST_NOTIFY_LOG_FILE
     }
-    if (-not $logFile) { return }
     $line = "[$((Get-Date).ToString('o'))] [watcher-launcher pid=$PID] $msg"
     try { [System.IO.File]::AppendAllText($logFile, "$line`n") } catch {}
 }

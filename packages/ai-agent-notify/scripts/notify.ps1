@@ -13,9 +13,7 @@ function Write-Log($msg) {
     $LogFile = Resolve-LogFile
     $line = "[$((Get-Date).ToString('o'))] [ps1 pid=$PID] $msg"
     [Console]::Error.WriteLine($line)
-    if ($LogFile) {
-        try { Add-Content -LiteralPath $LogFile -Value $line -Encoding UTF8 } catch {}
-    }
+    try { Add-Content -LiteralPath $LogFile -Value $line -Encoding UTF8 } catch {}
 }
 
 Write-Log "started"
