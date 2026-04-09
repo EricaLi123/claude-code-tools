@@ -131,7 +131,7 @@ function writeCodexCompletionReceipt({
       runtime.log(`wrote completion receipt sessionId=${sessionId} turnId=${turnId} eventName=Stop`);
     }
 
-    return key;
+    return true;
   } catch (error) {
     if (runtime && typeof runtime.log === "function") {
       runtime.log(
@@ -142,18 +142,10 @@ function writeCodexCompletionReceipt({
   }
 }
 
-function writeCodexCompletionReceiptForNotification(input, options = {}) {
-  const hasEnvelope = !!(input && typeof input === "object" && input.notification);
-  const notification = hasEnvelope ? input.notification : input;
-  const runtime = hasEnvelope ? input.runtime : options.runtime;
-  const receiptsDir = hasEnvelope ? input.receiptsDir : options.receiptsDir;
-  const nowMs =
-    typeof (hasEnvelope ? input.nowMs : options.nowMs) === "number"
-      ? hasEnvelope
-        ? input.nowMs
-        : options.nowMs
-      : Date.now();
-
+function writeCodexCompletionReceiptForNotification(
+  notification,
+  { runtime, receiptsDir, nowMs = Date.now() } = {}
+) {
   if (
     !notification ||
     notification.sourceId !== "codex-legacy-notify" ||

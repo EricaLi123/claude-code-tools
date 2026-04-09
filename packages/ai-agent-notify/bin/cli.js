@@ -103,27 +103,35 @@ function printHelp() {
   );
 }
 
-async function runDefaultNotifyMode(argv) {
-  const stdinData = readStdin();
-  const notification = normalizeIncomingNotification({
+async function runDefaultNotifyMode(argv, options = {}) {
+  const {
+    createRuntimeImpl = createRuntime,
+    detectTerminalContextImpl = detectTerminalContext,
+    emitNotificationImpl = emitNotification,
+    exitProcessImpl = process.exit,
+    normalizeIncomingNotificationImpl = normalizeIncomingNotification,
+    stdinData = readStdin(),
+    writeCodexCompletionReceiptForNotificationImpl = writeCodexCompletionReceiptForNotification,
+  } = options;
+
+  const notification = normalizeIncomingNotificationImpl({
     argv,
     stdinData,
     env: process.env,
   });
   const sessionId = notification.sessionId || "unknown";
-  const runtime = createRuntime(sessionId);
-  writeCodexCompletionReceiptForNotification({
-    notification,
+  const runtime = createRuntimeImpl(sessionId);
+  writeCodexCompletionReceiptForNotificationImpl(notification, {
     runtime,
   });
-  const terminal = detectTerminalContext(argv, runtime.log);
+  const terminal = detectTerminalContextImpl(argv, runtime.log);
 
   runtime.log(
     `started mode=notify source=${notification.sourceId} transport=${notification.transport || "none"} session=${sessionId} packageRoot=${runtime.buildInfo.packageRoot}`
   );
   runtime.log(notification.debugSummary);
 
-  const child = emitNotification({
+  const child = emitNotificationImpl({
     source: notification.source,
     eventName: notification.eventName,
     title: notification.title,
@@ -135,13 +143,15 @@ async function runDefaultNotifyMode(argv) {
 
   child.on("close", (code) => {
     runtime.log(`notify.ps1 exited code=${code}`);
-    process.exit(code || 0);
+    exitProcessImpl(code || 0);
   });
 
   child.on("error", (error) => {
     runtime.log(`spawn failed: ${error.message}`);
-    process.exit(0);
+    exitProcessImpl(0);
   });
+
+  return child;
 }
 
 function readPackageVersion() {
@@ -161,3 +171,5 @@ function readStdin() {
   }
   return fs.readFileSync(0, { encoding: "utf8" });
 }
+
+module.exports.runDefaultNotifyMode = runDefaultNotifyMode;

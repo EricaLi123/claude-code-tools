@@ -94,10 +94,7 @@ function normalizeCodexLegacyNotifyPayload(candidate) {
   }
 
   const rawEventType = getStringField(payload, ["type"]);
-  const sessionId =
-    getStringField(payload, ["thread-id", "thread_id", "threadId"]) ||
-    getStringField(payload, ["turn-id", "turn_id", "turnId"]) ||
-    "unknown";
+  const sessionId = getStringField(payload, ["thread-id", "thread_id", "threadId"]) || "unknown";
   const turnId = getStringField(payload, ["turn-id", "turn_id", "turnId"]);
   const client = getStringField(payload, ["client"]);
   const projectDir = getStringField(payload, ["cwd", "project-dir", "project_dir", "projectDir"]);
