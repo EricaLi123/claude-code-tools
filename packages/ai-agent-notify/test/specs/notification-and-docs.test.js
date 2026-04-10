@@ -138,6 +138,28 @@ module.exports = function runNotificationAndDocsTests(h) {
     assert(readmeContent.includes("Do **not** set `cwd`"));
   });
 
+  test("README documents watcher completion fallback without replacing notify-first completion", () => {
+    const readmeContent = read("README.md");
+    assert(readmeContent.includes("primary completion path"));
+    assert(readmeContent.includes("watcher-side completion fallback"));
+    assert(readmeContent.includes("approval reminders"));
+  });
+
+  test("architecture documents task_complete receipts and delayed fallback", () => {
+    const architectureContent = read("docs/architecture.md");
+    assert(architectureContent.includes("task_complete"));
+    assert(architectureContent.includes("completion receipt"));
+    assert(architectureContent.includes("delayed fallback"));
+    assert(architectureContent.includes("notify-first"));
+    assert(architectureContent.includes("completion 的主路径不走 sidecar"));
+    assert(!architectureContent.includes("completion 不走 sidecar。只有 approval 的检测"));
+  });
+
+  test("cli help documents codex-session-watch completion fallback wording", () => {
+    const cliContent = read("bin/cli.js");
+    assert(cliContent.includes("approval events and completion fallback"));
+  });
+
   test("README stays focused on quick setup", () => {
     const readmeContent = read("README.md");
     assert(!readmeContent.includes("## Problem It Solves"));

@@ -90,7 +90,7 @@ function printHelp() {
       "",
       "Modes:",
       "  default             Read notification JSON from stdin or argv and show a notification",
-      "  codex-session-watch Watch local Codex rollout files and TUI logs for approval events",
+      "  codex-session-watch Watch local Codex rollout files and TUI logs for approval events and completion fallback",
       "  codex-mcp-sidecar   Run a minimal MCP sidecar that records Codex terminal/session hints and ensures codex-session-watch is running",
       "",
       "Flags:",

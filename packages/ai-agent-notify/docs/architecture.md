@@ -25,7 +25,7 @@
 ## 当前边界
 
 - 默认入口 `ai-agent-notify` 继续统一收口 Claude hook stdin 和 Codex legacy notify argv。
-- completion 继续走 `notify` 直达，不走 sidecar 链路。
+- completion 继续走 `notify` 直达，保持 notify-first；`codex-session-watch` 只在 matching completion receipt 仍缺失时做 delayed fallback。
 - approval 继续由 `codex-session-watch` 识别，`codex-mcp-sidecar` 只负责记录启动期 terminal observation 和兜底拉起 watcher。
 - `sessionId -> terminal context` 的解释权收口在 watcher，而不是 sidecar。
 
@@ -44,8 +44,8 @@
 | 通道 | 能稳定拿到 | 拿不到 / 不应假设能拿到 | 适合承担的职责 |
 | --- | --- | --- | --- |
 | `codex-mcp-sidecar` | session 启动时机、继承的 `cwd`、本机父进程链、可自行探测的 `hwnd` / `shellPid` | 启动瞬间的官方 `sessionId`、`threadId`、`turnId`、approval 事件、官方 tab id | approval 场景的启动期 terminal observation、兜底拉起 watcher |
-| Codex legacy `notify` | 一次性 completion payload，常见场景下的 `thread-id` / `turn-id` / `cwd`，以及它触发当场可直接探测到的终端上下文 | approval 请求 | 完成类通知 + completion 当场定位 |
-| `codex-session-watch` | rollout `sessionId`、approval event、`cwd`、TUI 里的早期 approval 线索 | 启动当场的终端句柄、原始 tab 句柄 | approval 检测 + 提醒触发 |
+| Codex legacy `notify` | 一次性 completion payload，常见场景下的 `thread-id` / `turn-id` / `cwd`，以及它触发当场可直接探测到的终端上下文 | approval 请求 | 正常 completion 通知 + completion receipt |
+| `codex-session-watch` | rollout `sessionId`、`task_complete`、approval event、`cwd`、TUI 里的早期 approval 线索 | 启动当场的终端句柄、原始 tab 句柄 | approval 检测 + delayed completion fallback |
 
 ### 当前数据流
 
@@ -53,9 +53,10 @@
 Completion:
   Codex turn complete
     ├─ 触发 legacy notify
-    ├─ ai-agent-notify 用 normalizeIncomingNotification() 统一收口 payload
-    ├─ cli.js 当场探测当前终端上下文
-    └─ notify.ps1 发 toast / flash / open
+    ├─ ai-agent-notify 用 normalizeIncomingNotification() 统一收口 payload 并在 notify 刚开始时写 completion receipt
+    ├─ 同一个 turn 的 rollout 记录 `task_complete`，watcher 把它当作 delayed fallback 候选
+    ├─ watcher 先在 grace 窗口做 terminal 准备
+    └─ watcher 在真正 emitNotification() 前最后再查一次 receipt；只有 receipt 仍不存在时才判断 notify 失联并补发 fallback `Stop`
 
 Approval:
   Codex session start
@@ -73,7 +74,7 @@ Approval:
          └─ notify.ps1 发 toast / flash / open
 ```
 
-completion 不走 sidecar。只有 approval 的检测、定位增强和回退，才属于 `codex-session-watch + codex-mcp-sidecar` 这条组合链。
+completion 的主路径不走 sidecar；只有 delayed fallback 这一小段 completion 路径，才会落到 `codex-session-watch + codex-mcp-sidecar` 这条组合链。approval 的检测、定位增强和回退仍主要属于这条组合链。
 
 ## 为什么这样拆
 

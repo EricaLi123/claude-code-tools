@@ -35,11 +35,12 @@ Add to your `~/.claude/settings.json`:
 
 ## Codex
 
-- `notify = [...]` covers completion notifications.
+- `notify = [...]` remains the primary completion path for Codex task completions and covers completion notifications.
 - Add the `ai_agent_notify_sidecar` block if you also want approval reminders
-  and window / tab return guidance.
-- If you only care about completion notifications, you can omit the sidecar
-  block.
+  and the watcher-side completion fallback that triggers when the legacy notify
+  payload never reaches this package.
+- If you only care about completion notifications, omit the sidecar block;
+  `notify` still works on its own.
 
 `~/.codex/config.toml`:
 
@@ -53,7 +54,7 @@ required = false
 startup_timeout_sec = 30
 ```
 
-- `codex-session-watch` is the main path for approval reminders.
+- `codex-session-watch` is the main path for approval reminders and the watcher-side completion fallback.
 - `codex-mcp-sidecar` will usually auto-start `codex-session-watch`.
 - Do **not** set `cwd` on the MCP server entry above.
 
@@ -65,7 +66,7 @@ startup_timeout_sec = 30
 
 ## Known Limitations
 
-- **Very long Codex sessions:** completion notifications on Windows can stop firing after a very long session; `clear` or start a new session if this happens
+- **Very long Codex sessions:** completion notifications on Windows can stop firing after a very long session; `clear` or start a new session if this happens, and enable the sidecar/`codex-session-watch` path for fallback coverage.
 - **Toast source** shows as "Windows PowerShell" instead of "Claude Code"
 - **Windows 10:** `Open` may not work due to OS limitations
 - **macOS / Linux:** not supported
