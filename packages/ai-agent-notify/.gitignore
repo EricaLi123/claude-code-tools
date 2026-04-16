@@ -3,5 +3,6 @@ node_modules/
 *.tgz
 *.log
 tmp-ai-agent-*
+.tmp-*
 nul
 .claude/
