@@ -17,4 +17,5 @@
 ### 平台 / 信号 / 实现演进
 
 - [Codex completion 实测结论](./codex-completion-findings.md)
+- [Codex notify / completion 本地发现](./codex-local-notify-findings.md)
 - [Windows Terminal Tab 颜色演进](./tab-color-history.md)
