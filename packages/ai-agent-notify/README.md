@@ -2,8 +2,8 @@
 
 Windows Toast notifications for Claude Code and Codex.
 
-Get notified when Claude or Codex finishes a task, or when Codex requests
-approval.
+Get notified when a Claude or Codex turn completes, when Claude needs
+approval, and when Codex needs approval or input.
 
 ## Install
 
@@ -29,17 +29,17 @@ Add to your `~/.claude/settings.json`:
 }
 ```
 
-- `Stop` sends notifications when a Claude Code task finishes.
+- `Stop` sends notifications when a Claude Code turn completes.
 - `PermissionRequest` sends notifications when Claude Code needs approval.
 - Remove either hook if you only want one of those two behaviors.
 
 ## Codex
 
-- `notify = [...]` remains the primary completion path for Codex task completions and covers completion notifications.
-- Add the `ai_agent_notify_sidecar` block if you also want approval reminders
-  and the watcher-side completion fallback that triggers when the legacy notify
-  payload never reaches this package.
-- If you only care about completion notifications, omit the sidecar block;
+- `notify = [...]` remains the primary path for Codex turn-complete notifications.
+- Add the `ai_agent_notify_sidecar` block if you also want approval reminders,
+  input prompts, and the watcher-side completion fallback that triggers when
+  the legacy notify payload never reaches this package.
+- If you only care about turn-complete notifications, omit the sidecar block;
   `notify` still works on its own.
 
 `~/.codex/config.toml`:
@@ -54,7 +54,8 @@ required = false
 startup_timeout_sec = 30
 ```
 
-- `codex-session-watch` is the main path for approval reminders and the watcher-side completion fallback.
+- `codex-session-watch` is the main path for approval reminders, input prompts,
+  and the watcher-side completion fallback.
 - `codex-mcp-sidecar` will usually auto-start `codex-session-watch`.
 - Do **not** set `cwd` on the MCP server entry above.
 
@@ -66,7 +67,7 @@ startup_timeout_sec = 30
 
 ## Known Limitations
 
-- **Very long Codex sessions:** completion notifications on Windows can stop firing after a very long session; `clear` or start a new session if this happens, and enable the sidecar/`codex-session-watch` path for fallback coverage.
+- **Very long Codex sessions:** turn-complete notifications on Windows can stop firing after a very long session; `clear` or start a new session if this happens, and enable the sidecar/`codex-session-watch` path for fallback coverage.
 - **Toast source** shows as "Windows PowerShell" instead of "Claude Code"
 - **Windows 10:** `Open` may not work due to OS limitations
 - **macOS / Linux:** not supported

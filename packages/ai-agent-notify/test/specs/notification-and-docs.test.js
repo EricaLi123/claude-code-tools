@@ -108,7 +108,8 @@ module.exports = function runNotificationAndDocsTests(h) {
     assert(readmeContent.includes("codex-session-watch"));
     assert(readmeContent.includes("auto-start `codex-session-watch`"));
     assert(readmeContent.includes("approval reminders"));
-    assert(readmeContent.includes("If you only care about completion notifications"));
+    assert(readmeContent.includes("input prompts"));
+    assert(readmeContent.includes("If you only care about turn-complete notifications"));
     assert(!readmeContent.includes("If you are not using the MCP sidecar"));
     assert(!readmeContent.includes("codex-watch"));
   });
@@ -117,7 +118,7 @@ module.exports = function runNotificationAndDocsTests(h) {
     const readmeContent = read("README.md");
     assert(readmeContent.includes('notify = ["ai-agent-notify.cmd"]'));
     assert(readmeContent.includes("`~/.codex/config.toml`:"));
-    assert(readmeContent.includes("covers completion notifications"));
+    assert(readmeContent.includes("primary path for Codex turn-complete notifications"));
     assert(readmeContent.includes("startup_timeout_sec = 30"));
     assert(
       readmeContent.includes(
@@ -140,9 +141,10 @@ module.exports = function runNotificationAndDocsTests(h) {
 
   test("README documents watcher completion fallback without replacing notify-first completion", () => {
     const readmeContent = read("README.md");
-    assert(readmeContent.includes("primary completion path"));
+    assert(readmeContent.includes("primary path for Codex turn-complete notifications"));
     assert(readmeContent.includes("watcher-side completion fallback"));
     assert(readmeContent.includes("approval reminders"));
+    assert(readmeContent.includes("input prompts"));
   });
 
   test("architecture documents task_complete receipts and delayed fallback", () => {
@@ -170,6 +172,7 @@ module.exports = function runNotificationAndDocsTests(h) {
     assert(readmeContent.includes("## Codex"));
     assert(readmeContent.includes("Stop"));
     assert(readmeContent.includes("PermissionRequest"));
+    assert(readmeContent.includes("needs approval or input"));
   });
 
   test("active docs recommend the installed command path over npx", () => {
