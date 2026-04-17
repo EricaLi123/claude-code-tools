@@ -267,6 +267,7 @@ function looksLikeRelativePathCandidate(value) {
   const text = String(value || "");
   if (
     !text ||
+    /[\r\n]/.test(text) ||
     /^[A-Za-z]:[\\/]/.test(text) ||
     /^[A-Za-z]+:\/\//.test(text) ||
     text.startsWith("$")

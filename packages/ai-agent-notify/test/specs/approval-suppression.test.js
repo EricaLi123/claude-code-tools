@@ -76,7 +76,7 @@ module.exports = function runApprovalSuppressionTests(h) {
     );
   });
 
-  test("extractCommandApprovalRoots normalizes absolute file, directory, and inline node script roots", () => {
+  test("extractCommandApprovalRoots normalizes absolute file and directory roots", () => {
     const packageRoot = normalizeTestPath(ROOT);
     const binDir = normalizeTestPath(path.join(ROOT, "bin"));
     const fileRoots = approval.extractCommandApprovalRoots({
@@ -87,16 +87,27 @@ module.exports = function runApprovalSuppressionTests(h) {
       command: `Get-ChildItem '${path.join(ROOT, "bin")}' -File | Select-Object -ExpandProperty FullName`,
       workdir: ROOT,
     });
-    const inlineNodeRoots = approval.extractCommandApprovalRoots({
-      command: `@'\nconst root = '${ROOT.replace(/\\/g, "/")}';\nwriteAsciiJs(path.join(root, 'bin/cli.js'), 'x');\n'@ | node -`,
-      workdir: ROOT,
-    });
-
     assert(fileRoots.includes(packageRoot));
     assert(dirRoots.includes(packageRoot));
-    assert(inlineNodeRoots.includes(packageRoot));
-    assert(!inlineNodeRoots.some((root) => root.includes("@\nconst root")));
     assert(fileRoots.includes(packageRoot) && !fileRoots.includes(binDir));
+  });
+
+  test("extractCommandApprovalRoots ignores PowerShell here-string tokens around inline node scripts", () => {
+    const githubRunnerRoot = "D:\\a\\ai-tools\\ai-tools\\packages\\ai-agent-notify";
+    const packageRoot = normalizeTestPath(githubRunnerRoot);
+    const inlineNodeRoots = approval.extractCommandApprovalRoots({
+      command:
+        `@'\nconst root = '${githubRunnerRoot.replace(/\\/g, "/")}';\n` +
+        `writeAsciiJs(path.join(root, 'bin/cli.js'), 'x');\n'@ | node -`,
+      workdir: githubRunnerRoot,
+    });
+
+    assert(inlineNodeRoots.includes(packageRoot));
+    assert(
+      inlineNodeRoots.length === 1,
+      `inline node roots should only resolve the package root: ${JSON.stringify(inlineNodeRoots)}`
+    );
+    assert(!inlineNodeRoots.some((root) => root.includes("@\nconst root")));
   });
 
   test("confirmed session approval suppresses later read-only require_escalated commands in the same root", () => {
