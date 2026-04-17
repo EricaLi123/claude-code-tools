@@ -231,7 +231,7 @@ module.exports = function runStructureAndRuntimeTests(h) {
 
   test("createRuntime rolls over to a new daily log file when the date changes", () => {
     const logId = `daily-rollover-${process.pid}-${Date.now()}`;
-    let currentNow = new Date("2026-04-09T23:59:58.000+08:00");
+    let currentNow = new Date(2026, 3, 9, 23, 59, 58, 0);
     const runtime = notifyRuntime.createRuntime(logId, {
       nowProvider: () => currentNow,
     });
@@ -239,7 +239,7 @@ module.exports = function runStructureAndRuntimeTests(h) {
 
     try {
       runtime.log("day one");
-      currentNow = new Date("2026-04-10T00:00:02.000+08:00");
+      currentNow = new Date(2026, 3, 10, 0, 0, 2, 0);
       const secondLogFile = runtime.logFile;
       runtime.log("day two");
 

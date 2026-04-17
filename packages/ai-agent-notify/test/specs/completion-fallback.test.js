@@ -193,6 +193,7 @@ module.exports = function runCompletionFallbackTests(h) {
 
   test("cli writes completion receipt before terminal detection runs", () => {
     const cli = require(path.join(ROOT, "bin", "cli.js"));
+    const originalGitHubActions = process.env.GITHUB_ACTIONS;
     const sessionId = `cli-order-session-${process.pid}-${Date.now()}`;
     const turnId = `cli-order-turn-${process.hrtime.bigint().toString()}`;
     const key = completionReceipts.buildCodexCompletionReceiptKey({
@@ -203,6 +204,7 @@ module.exports = function runCompletionFallbackTests(h) {
     let receiptSeenDuringDetect = false;
 
     deleteReceiptByKey(key);
+    delete process.env.GITHUB_ACTIONS;
 
     try {
       cli.runDefaultNotifyMode([], {
@@ -246,7 +248,74 @@ module.exports = function runCompletionFallbackTests(h) {
 
       assert(receiptSeenDuringDetect, "receipt should exist before terminal detection");
     } finally {
+      if (typeof originalGitHubActions === "undefined") {
+        delete process.env.GITHUB_ACTIONS;
+      } else {
+        process.env.GITHUB_ACTIONS = originalGitHubActions;
+      }
       deleteReceiptByKey(key);
+    }
+  });
+
+  test("cli skips real notification dispatch on GitHub Actions runners", () => {
+    const cli = require(path.join(ROOT, "bin", "cli.js"));
+    const originalGitHubActions = process.env.GITHUB_ACTIONS;
+    let detectCalled = false;
+    let emitCalled = false;
+    let exitCode = null;
+
+    process.env.GITHUB_ACTIONS = "true";
+
+    try {
+      cli.runDefaultNotifyMode([], {
+        stdinData: "",
+        normalizeIncomingNotificationImpl: () => ({
+          sourceId: "codex-legacy-notify",
+          source: "Codex",
+          transport: "argv[0]",
+          sessionId: `gha-session-${process.pid}-${Date.now()}`,
+          turnId: `gha-turn-${process.hrtime.bigint().toString()}`,
+          eventName: "Stop",
+          title: "Done",
+          message: "Task finished",
+          rawEventType: "agent-turn-complete",
+          debugSummary: "gha payload",
+        }),
+        createRuntimeImpl: () => ({
+          buildInfo: { packageRoot: ROOT },
+          isDev: true,
+          logFile: path.join(notifyRuntime.LOG_DIR, `gha-test-log-${Date.now()}.log`),
+          logStem: `gha-test-log-${Date.now()}`,
+          log: () => {},
+        }),
+        detectTerminalContextImpl: () => {
+          detectCalled = true;
+          return {
+            hwnd: null,
+            shellPid: null,
+            isWindowsTerminal: false,
+          };
+        },
+        emitNotificationImpl: () => {
+          emitCalled = true;
+          return {
+            on: () => {},
+          };
+        },
+        exitProcessImpl: (code) => {
+          exitCode = code;
+        },
+      });
+
+      assert(!detectCalled, "GitHub Actions path should skip terminal detection");
+      assert(!emitCalled, "GitHub Actions path should skip notification dispatch");
+      assert(exitCode === 0, "GitHub Actions path should exit cleanly");
+    } finally {
+      if (typeof originalGitHubActions === "undefined") {
+        delete process.env.GITHUB_ACTIONS;
+      } else {
+        process.env.GITHUB_ACTIONS = originalGitHubActions;
+      }
     }
   });
 

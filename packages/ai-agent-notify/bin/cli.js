@@ -124,12 +124,19 @@ async function runDefaultNotifyMode(argv, options = {}) {
   writeCodexCompletionReceiptForNotificationImpl(notification, {
     runtime,
   });
-  const terminal = detectTerminalContextImpl(argv, runtime.log);
 
   runtime.log(
     `started mode=notify source=${notification.sourceId} transport=${notification.transport || "none"} session=${sessionId} packageRoot=${runtime.buildInfo.packageRoot}`
   );
   runtime.log(notification.debugSummary);
+
+  if (shouldSkipNotificationDispatch(process.env)) {
+    runtime.log("skipping notification dispatch because GITHUB_ACTIONS=true");
+    exitProcessImpl(0);
+    return null;
+  }
+
+  const terminal = detectTerminalContextImpl(argv, runtime.log);
 
   const child = emitNotificationImpl({
     source: notification.source,
@@ -152,6 +159,10 @@ async function runDefaultNotifyMode(argv, options = {}) {
   });
 
   return child;
+}
+
+function shouldSkipNotificationDispatch(env) {
+  return Boolean(env && env.GITHUB_ACTIONS === "true");
 }
 
 function readPackageVersion() {
