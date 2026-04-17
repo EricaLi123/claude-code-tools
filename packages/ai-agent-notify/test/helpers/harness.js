@@ -80,8 +80,23 @@ function createHarness() {
     } catch (error) {
       console.log(`  FAIL  ${name}`);
       console.log(`        ${error.message}`);
+      emitGitHubActionsFailureAnnotation(name, error);
       failed += 1;
     }
+  }
+
+  function emitGitHubActionsFailureAnnotation(name, error) {
+    if (process.env.GITHUB_ACTIONS !== "true") {
+      return;
+    }
+
+    const message = error && error.message ? error.message : String(error);
+    const escapeWorkflowCommand = (value) =>
+      String(value).replace(/%/g, "%25").replace(/\r/g, "%0D").replace(/\n/g, "%0A");
+
+    process.stdout.write(
+      `::error title=${escapeWorkflowCommand(`ai-agent-notify test failed: ${name}`)}::${escapeWorkflowCommand(message)}\n`
+    );
   }
 
   function assert(condition, message) {
