@@ -23,8 +23,9 @@ module.exports = function runNotificationAndDocsTests(h) {
       env: {},
     });
 
-    assert(normalized.sourceId === "claude-hook");
-    assert(normalized.source === "Claude");
+    assert(normalized.sourceId === "claude");
+    assert(normalized.entryPointId === "notify-mode");
+    assert(normalized.source === "claude.notify-mode");
     assert(normalized.eventName === "PermissionRequest");
     assert(normalized.sessionId === "claude-session-1");
     assert(normalized.title === "Needs Approval");
@@ -34,14 +35,38 @@ module.exports = function runNotificationAndDocsTests(h) {
 
   test("notification spec infers titles and messages for InputRequest", () => {
     const normalized = createNotificationSpec({
-      sourceId: "codex-session-watch",
+      sourceId: "codex",
+      entryPointId: "rollout-watch",
       eventName: "InputRequest",
     });
 
-    assert(normalized.source === "Codex");
+    assert(normalized.source === "codex.rollout-watch");
     assert(normalized.eventName === "InputRequest");
     assert(normalized.title === "Input Needed");
     assert(normalized.message === "Waiting for your input");
+  });
+
+  test("notification spec does not infer source hierarchy from a display string", () => {
+    const normalized = createNotificationSpec({
+      source: "watch-rollout",
+      eventName: "InputRequest",
+    });
+
+    assert(normalized.sourceId === "unknown");
+    assert(normalized.entryPointId === "");
+    assert(normalized.source === "watch-rollout");
+  });
+
+  test("notification spec does not rewrite historical source ids", () => {
+    const normalized = createNotificationSpec({
+      sourceId: "codex-legacy-notify",
+      entryPointId: "completion-fallback",
+      eventName: "Stop",
+    });
+
+    assert(normalized.sourceId === "codex-legacy-notify");
+    assert(normalized.entryPointId === "completion-fallback");
+    assert(normalized.source === "codex-legacy-notify.completion-fallback");
   });
 
   test("notification source normalizer canonicalizes source-prefixed stop titles", () => {
@@ -77,8 +102,9 @@ module.exports = function runNotificationAndDocsTests(h) {
       env: {},
     });
 
-    assert(normalized.sourceId === "codex-legacy-notify");
-    assert(normalized.source === "Codex");
+    assert(normalized.sourceId === "codex");
+    assert(normalized.entryPointId === "notify-mode");
+    assert(normalized.source === "codex.notify-mode");
     assert(normalized.eventName === "Stop");
     assert(normalized.title === "Done");
     assert(normalized.message === "Task finished");
@@ -107,6 +133,10 @@ module.exports = function runNotificationAndDocsTests(h) {
     const readmeContent = read("README.md");
     assert(readmeContent.includes("codex-session-watch"));
     assert(readmeContent.includes("auto-start `codex-session-watch`"));
+    assert(readmeContent.includes("codex.notify-mode"));
+    assert(readmeContent.includes("codex.rollout-watch"));
+    assert(readmeContent.includes("codex.tui-watch"));
+    assert(readmeContent.includes("claude.notify-mode"));
     assert(readmeContent.includes("approval reminders"));
     assert(readmeContent.includes("input prompts"));
     assert(readmeContent.includes("If you only care about turn-complete notifications"));

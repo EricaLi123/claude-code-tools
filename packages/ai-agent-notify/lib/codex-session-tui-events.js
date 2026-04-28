@@ -27,7 +27,8 @@ function buildCodexTuiApprovalEvent(tuiState, line, { sessionProjectDirs, sessio
 
   return {
     ...createNotificationSpec({
-      sourceId: "codex-session-watch",
+      sourceId: "codex",
+      entryPointId: "tui-watch",
       sessionId,
       turnId,
       eventName: "PermissionRequest",
@@ -63,7 +64,8 @@ function buildCodexTuiInputEvent(tuiState, line, { sessionProjectDirs }) {
 
   return {
     ...createNotificationSpec({
-      sourceId: "codex-session-watch",
+      sourceId: "codex",
+      entryPointId: "tui-watch",
       sessionId,
       turnId,
       eventName: "InputRequest",

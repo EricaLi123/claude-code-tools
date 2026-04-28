@@ -148,7 +148,8 @@ function writeCodexCompletionReceiptForNotification(
 ) {
   if (
     !notification ||
-    notification.sourceId !== "codex-legacy-notify" ||
+    notification.sourceId !== "codex" ||
+    notification.entryPointId !== "notify-mode" ||
     notification.eventName !== "Stop"
   ) {
     return false;

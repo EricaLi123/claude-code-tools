@@ -71,7 +71,8 @@ module.exports = function runCompletionFallbackTests(h) {
 
     try {
       completionReceipts.writeCodexCompletionReceiptForNotification({
-        sourceId: "codex-legacy-notify",
+        sourceId: "codex",
+        entryPointId: "notify-mode",
         eventName: "Stop",
         sessionId,
         turnId,
@@ -115,14 +116,16 @@ module.exports = function runCompletionFallbackTests(h) {
 
     try {
       const nonStopResult = completionReceipts.writeCodexCompletionReceiptForNotification({
-        sourceId: "codex-legacy-notify",
+        sourceId: "codex",
+        entryPointId: "notify-mode",
         eventName: "PermissionRequest",
         sessionId: nonStopSessionId,
         turnId: nonStopTurnId,
       });
       const missingTurnResult =
         completionReceipts.writeCodexCompletionReceiptForNotification({
-          sourceId: "codex-legacy-notify",
+          sourceId: "codex",
+          entryPointId: "notify-mode",
           eventName: "Stop",
           sessionId: `completion-missing-turn-${process.pid}-${Date.now()}`,
           turnId: "",
@@ -178,7 +181,8 @@ module.exports = function runCompletionFallbackTests(h) {
     try {
       const wrote = completionReceipts.writeCodexCompletionReceiptForNotification(notification);
 
-      assert(notification.sourceId === "codex-legacy-notify", "expected codex legacy notification");
+      assert(notification.sourceId === "codex", "expected codex notification sourceId");
+      assert(notification.entryPointId === "notify-mode", "expected codex notify entryPointId");
       assert(notification.turnId === turnId, "expected turn id");
       assert(notification.sessionId === "unknown", "turn-only payload should not synthesize sessionId");
       assert(!wrote, "turn-only payload should not write a completion receipt");
@@ -214,8 +218,9 @@ module.exports = function runCompletionFallbackTests(h) {
       cli.runDefaultNotifyMode([], {
         stdinData: "",
         normalizeIncomingNotificationImpl: () => ({
-          sourceId: "codex-legacy-notify",
-          source: "Codex",
+          sourceId: "codex",
+          entryPointId: "notify-mode",
+          source: "codex.notify-mode",
           transport: "argv[0]",
           sessionId,
           turnId,
@@ -274,8 +279,9 @@ module.exports = function runCompletionFallbackTests(h) {
       cli.runDefaultNotifyMode([], {
         stdinData: "",
         normalizeIncomingNotificationImpl: () => ({
-          sourceId: "codex-legacy-notify",
-          source: "Codex",
+          sourceId: "codex",
+          entryPointId: "notify-mode",
+          source: "codex.notify-mode",
           transport: "argv[0]",
           sessionId: `gha-session-${process.pid}-${Date.now()}`,
           turnId: `gha-turn-${process.hrtime.bigint().toString()}`,
@@ -332,7 +338,8 @@ module.exports = function runCompletionFallbackTests(h) {
       log: (line) => logs.push(line),
     };
     const event = {
-      sourceId: "codex-session-watch",
+      sourceId: "codex",
+      entryPointId: "rollout-watch",
       sessionId: "pending-session",
       turnId: "pending-turn",
       eventName: "Stop",
@@ -441,7 +448,8 @@ module.exports = function runCompletionFallbackTests(h) {
       log: (line) => logs.push(line),
     };
     const event = {
-      sourceId: "codex-session-watch",
+      sourceId: "codex",
+      entryPointId: "rollout-watch",
       sessionId: "receipt-session",
       turnId: "receipt-turn",
       eventName: "Stop",
@@ -500,7 +508,8 @@ module.exports = function runCompletionFallbackTests(h) {
       pendingCompletionNotifications,
       emittedEventKeys,
       event: {
-        sourceId: "codex-session-watch",
+        sourceId: "codex",
+        entryPointId: "rollout-watch",
         sessionId: "queued-session",
         turnId: "queued-turn",
         eventName: "Stop",
@@ -671,7 +680,7 @@ module.exports = function runCompletionFallbackTests(h) {
     const didEmit = completionNotify.emitPreparedCodexCompletionNotification({
       prepared: {
         event: {
-          source: "Codex",
+          source: "codex.rollout-watch",
           eventName: "Stop",
           title: "Done",
           message: "Task finished",
@@ -707,7 +716,7 @@ module.exports = function runCompletionFallbackTests(h) {
 
     const prepared = completionNotify.prepareCodexCompletionNotification({
       event: {
-        source: "Codex",
+        source: "codex.rollout-watch",
         eventName: "Stop",
         title: "Done",
         message: "Task finished",

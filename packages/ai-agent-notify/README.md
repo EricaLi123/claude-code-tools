@@ -57,6 +57,9 @@ startup_timeout_sec = 30
 - `codex-session-watch` is the main path for approval reminders, input prompts,
   and the watcher-side completion fallback.
 - `codex-mcp-sidecar` will usually auto-start `codex-session-watch`.
+- Notifications show both the product and the current package entry point, with
+  labels such as `claude.notify-mode`, `codex.notify-mode`,
+  `codex.rollout-watch`, and `codex.tui-watch`.
 - Do **not** set `cwd` on the MCP server entry above.
 
 ## Requirements

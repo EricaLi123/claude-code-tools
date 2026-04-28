@@ -98,7 +98,8 @@ function buildSessionFunctionCallEvent({ callId, payload, projectDir, sessionId,
     const descriptor = getCodexInputRequestDescriptor(args);
     return {
       ...createNotificationSpec({
-        sourceId: "codex-session-watch",
+        sourceId: "codex",
+        entryPointId: "rollout-watch",
         sessionId,
         turnId,
         eventName: "InputRequest",
@@ -126,7 +127,8 @@ function buildSessionFunctionCallEvent({ callId, payload, projectDir, sessionId,
   const approvalProjectDir = args.workdir || projectDir;
   return {
     ...createNotificationSpec({
-      sourceId: "codex-session-watch",
+      sourceId: "codex",
+      entryPointId: "rollout-watch",
       sessionId,
       turnId,
       eventName: "PermissionRequest",
@@ -158,7 +160,8 @@ function createSessionApprovalRequestEvent({
 }) {
   return {
     ...createNotificationSpec({
-      sourceId: "codex-session-watch",
+      sourceId: "codex",
+      entryPointId: "rollout-watch",
       sessionId,
       turnId,
       eventName: "PermissionRequest",
@@ -199,7 +202,8 @@ function createSessionCompletionEvent({
 
   return {
     ...createNotificationSpec({
-      sourceId: "codex-session-watch",
+      sourceId: "codex",
+      entryPointId: "rollout-watch",
       sessionId,
       turnId,
       eventName: "Stop",

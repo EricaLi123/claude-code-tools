@@ -33,6 +33,7 @@ function normalizeIncomingNotification({ argv = [], stdinData = "", env = {} } =
   return applyExplicitDisplayOverrides(
     createNotificationSpec({
       sourceId: "unknown",
+      entryPointId: "notify-mode",
       transport: candidates.length > 0 ? candidates[0].transport : "none",
       sessionId: "unknown",
       payloadKeys: [],
@@ -74,7 +75,8 @@ function normalizeClaudeHookPayload(candidate) {
   }
 
   return createNotificationSpec({
-    sourceId: "claude-hook",
+    sourceId: "claude",
+    entryPointId: "notify-mode",
     source: getStringField(payload, ["source"]),
     transport: candidate.transport,
     sessionId: getStringField(payload, ["session_id"]) || "unknown",
@@ -120,7 +122,8 @@ function normalizeCodexLegacyNotifyPayload(candidate) {
   }
 
   return createNotificationSpec({
-    sourceId: "codex-legacy-notify",
+    sourceId: "codex",
+    entryPointId: "notify-mode",
     source: getStringField(payload, ["source"]),
     transport: candidate.transport,
     sessionId,
@@ -144,6 +147,7 @@ function normalizeGenericJsonPayload(candidate) {
 
   return createNotificationSpec({
     sourceId: inferSourceId(payload),
+    entryPointId: "notify-mode",
     source: getStringField(payload, ["source"]),
     transport: candidate.transport,
     sessionId:
@@ -162,7 +166,7 @@ function normalizeGenericJsonPayload(candidate) {
 function inferSourceId(payload) {
   const client = getStringField(payload, ["client"]);
   if (client.startsWith("codex")) {
-    return "codex-json";
+    return "codex";
   }
 
   if (
@@ -179,11 +183,11 @@ function inferSourceId(payload) {
       "last_assistant_message",
     ])
   ) {
-    return "codex-json";
+    return "codex";
   }
 
   if (hasAnyKey(payload, ["hook_event_name", "session_id"])) {
-    return "claude-hook";
+    return "claude";
   }
 
   return "unknown";

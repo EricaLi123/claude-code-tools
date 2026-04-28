@@ -1,13 +1,15 @@
 "use strict";
 
 function createNotificationSpec(spec) {
-  const sourceId = spec.sourceId || spec.source || "unknown";
+  const sourceId = canonicalizeSourceId(spec.sourceId || "unknown");
+  const entryPointId = canonicalizeEntryPointId(spec.entryPointId || "");
   const eventName = spec.eventName || "";
 
   return {
     sourceId,
+    entryPointId,
     sourceFamily: getSourceFamily(sourceId),
-    source: canonicalizeDisplaySource(spec.source || inferDisplaySource(sourceId)),
+    source: canonicalizeDisplaySource(spec.source) || inferDisplaySource(sourceId, entryPointId),
     transport: spec.transport || "",
     sessionId: spec.sessionId || "unknown",
     turnId: spec.turnId || "",
@@ -39,16 +41,12 @@ function getExplicitDisplayOverrides(env) {
   };
 }
 
-function inferDisplaySource(sourceId) {
-  if (typeof sourceId === "string" && sourceId.startsWith("codex")) {
-    return "Codex";
+function inferDisplaySource(sourceId, entryPointId) {
+  if (!sourceId || sourceId === "unknown") {
+    return "";
   }
 
-  if (typeof sourceId === "string" && sourceId.startsWith("claude")) {
-    return "Claude";
-  }
-
-  return "";
+  return entryPointId ? `${sourceId}.${entryPointId}` : sourceId;
 }
 
 function inferNotificationTitle(eventName) {
@@ -83,19 +81,29 @@ function canonicalizeDisplaySource(source) {
     return "";
   }
 
-  if (/^claude(?:-hook)?$/i.test(trimmed)) {
-    return "Claude";
-  }
-
-  if (/^codex(?:[- ].+)?$/i.test(trimmed)) {
-    return "Codex";
-  }
-
   if (/^(unknown|notification)$/i.test(trimmed)) {
     return "";
   }
 
   return trimmed;
+}
+
+function canonicalizeSourceId(sourceId) {
+  const trimmed = typeof sourceId === "string" ? sourceId.trim() : "";
+  if (!trimmed || /^(unknown|notification)$/i.test(trimmed)) {
+    return "unknown";
+  }
+
+  return trimmed.toLowerCase();
+}
+
+function canonicalizeEntryPointId(entryPointId) {
+  const trimmed = typeof entryPointId === "string" ? entryPointId.trim() : "";
+  if (!trimmed || /^(unknown|notification)$/i.test(trimmed)) {
+    return "";
+  }
+
+  return trimmed.toLowerCase();
 }
 
 function canonicalizeNotificationTitle(title) {
@@ -119,11 +127,11 @@ function canonicalizeNotificationMessage(message) {
 }
 
 function getSourceFamily(sourceId) {
-  if (typeof sourceId === "string" && sourceId.startsWith("codex")) {
+  if (sourceId === "codex") {
     return "codex";
   }
 
-  if (typeof sourceId === "string" && sourceId.startsWith("claude")) {
+  if (sourceId === "claude") {
     return "claude";
   }
 
