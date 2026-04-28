@@ -3,14 +3,6 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 
-const { createApprovedCommandRuleCache } = require("./codex-approval-rules");
-const { flushPendingApprovalNotifications } = require("./codex-approval-pending");
-const {
-  emitPreparedCodexCompletionNotification,
-  prepareCodexCompletionNotification,
-} = require("./codex-completion-notify");
-const { flushPendingCompletionNotifications } = require("./codex-completion-pending");
-const { hasCodexCompletionReceipt } = require("./codex-completion-receipts");
 const {
   bootstrapExistingSessionFileState,
   createSessionFileState,
@@ -65,16 +57,7 @@ async function runCodexSessionWatchMode(argv) {
   const terminal = createNeutralTerminalContext();
   const fileStates = new Map();
   const sessionProjectDirs = new Map();
-  const sessionApprovalContexts = new Map();
-  const sessionApprovalGrants = new Map();
-  const recentRequireEscalatedEvents = new Map();
   const emittedEventKeys = new Map();
-  const pendingApprovalNotifications = new Map();
-  const pendingApprovalCallIds = new Map();
-  const pendingCompletionNotifications = new Map();
-  const approvedCommandRuleCache = createApprovedCommandRuleCache(
-    path.join(getCodexHomeDir(), "rules", "default.rules")
-  );
   let tuiLogState = null;
   let initialScan = true;
   let scanInProgress = false;
@@ -151,23 +134,10 @@ async function runCodexSessionWatchMode(argv) {
           sessionsDir,
           terminal,
           emittedEventKeys,
-          pendingApprovalNotifications,
-          pendingApprovalCallIds,
-          pendingCompletionNotifications,
-          recentRequireEscalatedEvents,
-          sessionApprovalGrants,
-          approvedCommandRuleCache,
         });
 
         if (state.sessionId && state.cwd) {
           sessionProjectDirs.set(state.sessionId, state.cwd);
-        }
-
-        if (state.sessionId && (state.approvalPolicy || state.sandboxPolicy)) {
-          sessionApprovalContexts.set(state.sessionId, {
-            approvalPolicy: state.approvalPolicy || "",
-            sandboxPolicy: state.sandboxPolicy || null,
-          });
         }
       });
 
@@ -189,44 +159,8 @@ async function runCodexSessionWatchMode(argv) {
         terminal,
         emittedEventKeys,
         sessionProjectDirs,
-        sessionApprovalContexts,
-        pendingApprovalNotifications,
-        pendingApprovalCallIds,
-        recentRequireEscalatedEvents,
-        sessionApprovalGrants,
-        approvedCommandRuleCache,
       });
 
-      flushPendingApprovalNotifications({
-        runtime,
-        sessionsDir,
-        terminal,
-        emittedEventKeys,
-        pendingApprovalNotifications,
-        pendingApprovalCallIds,
-      });
-      flushPendingCompletionNotifications({
-        runtime,
-        pendingCompletionNotifications,
-        emittedEventKeys,
-        preparePendingCompletionNotification: ({ pending }) =>
-          prepareCodexCompletionNotification({
-            event: pending,
-            runtime,
-            terminal,
-            sessionsDir,
-          }),
-        hasCompletionReceipt: (args) => hasCodexCompletionReceipt(args),
-        emitPreparedCompletionNotification: ({ prepared, origin }) =>
-          emitPreparedCodexCompletionNotification({
-            prepared,
-            runtime,
-            emittedEventKeys,
-            origin,
-            terminal,
-            sessionsDir,
-          }),
-      });
       pruneEmittedEventKeys(emittedEventKeys, 4096);
     } catch (error) {
       runtime.log(`session scan failed: ${error.message}`);

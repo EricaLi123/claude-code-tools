@@ -6,12 +6,6 @@ const path = require("path");
 const { runCodexMcpSidecarMode } = require("../lib/codex-mcp-sidecar-mode");
 const { runCodexSessionWatchMode } = require("../lib/codex-session-watch-runner");
 const {
-  shouldEmitCodexEventNotification,
-} = require("../lib/codex-event-reconciliation");
-const {
-  writeCodexCompletionReceiptForNotification,
-} = require("../lib/codex-completion-receipts");
-const {
   createRuntime,
   detectTerminalContext,
   emitNotification,
@@ -93,7 +87,7 @@ function printHelp() {
       "",
       "Modes:",
       "  default             Read notification JSON from stdin or argv and show a notification",
-      "  codex-session-watch Watch local Codex rollout files and TUI logs for approval events and completion fallback",
+      "  codex-session-watch Watch local Codex rollout files and TUI logs for input prompts",
       "  codex-mcp-sidecar   Run a minimal MCP sidecar that records Codex terminal/session hints and ensures codex-session-watch is running",
       "",
       "Flags:",
@@ -113,9 +107,7 @@ async function runDefaultNotifyMode(argv, options = {}) {
     emitNotificationImpl = emitNotification,
     exitProcessImpl = process.exit,
     normalizeIncomingNotificationImpl = normalizeIncomingNotification,
-    shouldEmitCodexEventNotificationImpl = shouldEmitCodexEventNotification,
     stdinData = readStdin(),
-    writeCodexCompletionReceiptForNotificationImpl = writeCodexCompletionReceiptForNotification,
   } = options;
 
   const notification = normalizeIncomingNotificationImpl({
@@ -125,19 +117,11 @@ async function runDefaultNotifyMode(argv, options = {}) {
   });
   const sessionId = notification.sessionId || "unknown";
   const runtime = createRuntimeImpl(sessionId);
-  writeCodexCompletionReceiptForNotificationImpl(notification, {
-    runtime,
-  });
 
   runtime.log(
     `started mode=notify agent=${notification.agentId} transport=${notification.transport || "none"} session=${sessionId} packageRoot=${runtime.buildInfo.packageRoot}`
   );
   runtime.log(notification.debugSummary);
-
-  if (!shouldEmitCodexEventNotificationImpl(notification, { runtime })) {
-    exitProcessImpl(0);
-    return null;
-  }
 
   if (shouldSkipNotificationDispatch(process.env)) {
     runtime.log("skipping notification dispatch because GITHUB_ACTIONS=true");

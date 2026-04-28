@@ -19,12 +19,6 @@ function consumeSessionFileUpdates(
     sessionsDir,
     terminal,
     emittedEventKeys,
-    pendingApprovalNotifications,
-    pendingApprovalCallIds,
-    pendingCompletionNotifications,
-    recentRequireEscalatedEvents,
-    sessionApprovalGrants,
-    approvedCommandRuleCache,
   }
 ) {
   consumeTailFileLines({
@@ -41,12 +35,6 @@ function consumeSessionFileUpdates(
         sessionsDir,
         terminal,
         emittedEventKeys,
-        pendingApprovalNotifications,
-        pendingApprovalCallIds,
-        pendingCompletionNotifications,
-        recentRequireEscalatedEvents,
-        sessionApprovalGrants,
-        approvedCommandRuleCache,
       });
     },
   });
@@ -102,12 +90,6 @@ function consumeCodexTuiLogUpdates(
     terminal,
     emittedEventKeys,
     sessionProjectDirs,
-    sessionApprovalContexts,
-    pendingApprovalNotifications,
-    pendingApprovalCallIds,
-    recentRequireEscalatedEvents,
-    sessionApprovalGrants,
-    approvedCommandRuleCache,
   }
 ) {
   consumeTailFileLines({
@@ -122,12 +104,6 @@ function consumeCodexTuiLogUpdates(
         terminal,
         emittedEventKeys,
         sessionProjectDirs,
-        sessionApprovalContexts,
-        pendingApprovalNotifications,
-        pendingApprovalCallIds,
-        recentRequireEscalatedEvents,
-        sessionApprovalGrants,
-        approvedCommandRuleCache,
       });
     },
   });
@@ -135,7 +111,9 @@ function consumeCodexTuiLogUpdates(
 
 function consumeTailFileLines({ state, stat, runtime, truncationLabel, onLine }) {
   if (stat.size < state.position) {
-    runtime.log(`${truncationLabel} truncated file=${state.filePath} previous=${state.position} next=${stat.size}`);
+    runtime.log(
+      `${truncationLabel} truncated file=${state.filePath} previous=${state.position} next=${stat.size}`
+    );
     resetTailState(state, 0);
   }
 

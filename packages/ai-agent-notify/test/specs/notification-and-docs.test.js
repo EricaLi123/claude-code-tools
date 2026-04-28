@@ -61,12 +61,12 @@ module.exports = function runNotificationAndDocsTests(h) {
   test("notification spec canonicalizes codex-specific agent ids down to the agent source", () => {
     const normalized = createNotificationSpec({
       agentId: "codex-legacy-notify",
-      entryPointId: "completion-fallback",
+      entryPointId: "hooks-mode",
       eventName: "Stop",
     });
 
     assert(normalized.agentId === "codex");
-    assert(normalized.entryPointId === "completion-fallback");
+    assert(normalized.entryPointId === "hooks-mode");
     assert(!("source" in normalized));
   });
 
@@ -189,7 +189,7 @@ module.exports = function runNotificationAndDocsTests(h) {
     assert(normalized.message === "Waiting in CI");
   });
 
-  test("README documents codex session watcher usage", () => {
+  test("README documents codex session watcher as input-only support", () => {
     const readmeContent = read("README.md");
     assert(readmeContent.includes("codex-session-watch"));
     assert(readmeContent.includes("auto-start `codex-session-watch`"));
@@ -197,10 +197,11 @@ module.exports = function runNotificationAndDocsTests(h) {
     assert(readmeContent.includes("`rollout-watch`"));
     assert(readmeContent.includes("`tui-watch`"));
     assert(readmeContent.includes("`claude`"));
-    assert(readmeContent.includes("approval reminders"));
     assert(readmeContent.includes("input prompts"));
-    assert(readmeContent.includes("If you only care about turn-complete notifications"));
-    assert(!readmeContent.includes("If you are not using the MCP sidecar"));
+    assert(readmeContent.includes("watcher 只处理 `InputRequest`"));
+    assert(!readmeContent.includes("approval reminders"));
+    assert(!readmeContent.includes("completion fallback"));
+    assert(!readmeContent.includes("parallel validation"));
     assert(!readmeContent.includes("codex-watch"));
   });
 
@@ -230,46 +231,31 @@ module.exports = function runNotificationAndDocsTests(h) {
     assert(readmeContent.includes("Do **not** set `cwd`"));
   });
 
-  test("README documents watcher completion fallback without replacing notify-first completion", () => {
+  test("README documents hooks for PermissionRequest and Stop while watcher stays on InputRequest", () => {
     const readmeContent = read("README.md");
-    assert(readmeContent.includes("primary path for Codex turn-complete notifications"));
-    assert(readmeContent.includes("watcher-side completion fallback"));
-    assert(readmeContent.includes("approval reminders"));
-    assert(readmeContent.includes("input prompts"));
-  });
-
-  test("README documents optional Codex hooks parallel path with hooks.json only", () => {
-    const readmeContent = read("README.md");
-    assert(readmeContent.includes("hooks.json"));
-    assert(readmeContent.includes('"hooks": {'));
     assert(readmeContent.includes("PermissionRequest"));
     assert(readmeContent.includes("Stop"));
-    assert(readmeContent.includes("parallel validation"));
-    assert(readmeContent.includes("features.codex_hooks = true"));
+    assert(readmeContent.includes("InputRequest"));
+    assert(readmeContent.includes("hooks.json"));
+    assert(readmeContent.includes("watcher 只处理 `InputRequest`"));
     assert(readmeContent.includes("Codex 当前会跳过带 `async: true` 的 hooks"));
-    assert(readmeContent.includes("InputRequest still stays on `codex-session-watch`"));
-    assert(!readmeContent.includes("[[hooks.PermissionRequest]]"));
+    assert(!readmeContent.includes("watcher-side completion fallback"));
+    assert(!readmeContent.includes("InputRequest still stays on `codex-session-watch`"));
   });
 
-  test("architecture documents task_complete receipts and delayed fallback", () => {
+  test("architecture documents hooks ownership and dual-source InputRequest watcher", () => {
     const architectureContent = read("docs/architecture.md");
-    assert(architectureContent.includes("task_complete"));
-    assert(architectureContent.includes("completion receipt"));
-    assert(architectureContent.includes("delayed fallback"));
-    assert(architectureContent.includes("notify-first"));
-    assert(architectureContent.includes("completion 的主路径不走 sidecar"));
-    assert(!architectureContent.includes("completion 不走 sidecar。只有 approval 的检测"));
-  });
-
-  test("architecture documents hooks parallel reconciliation and no longer claims hooks are undocumented", () => {
-    const architectureContent = read("docs/architecture.md");
-    assert(architectureContent.includes("hooks.json"));
     assert(architectureContent.includes("hooks-mode"));
-    assert(architectureContent.includes("并行对账"));
-    assert(architectureContent.includes("sessionId + turnId + eventName"));
-    assert(architectureContent.includes("InputRequest 仍由 watcher"));
-    assert(!architectureContent.includes("没有公开 lifecycle hook 文档"));
-    assert(!architectureContent.includes("under development / off by default"));
+    assert(architectureContent.includes("PermissionRequest"));
+    assert(architectureContent.includes("Stop"));
+    assert(architectureContent.includes("InputRequest"));
+    assert(architectureContent.includes("rollout JSONL"));
+    assert(architectureContent.includes("codex-tui.log"));
+    assert(architectureContent.includes("watcher 只处理 `InputRequest`"));
+    assert(!architectureContent.includes("task_complete"));
+    assert(!architectureContent.includes("completion receipt"));
+    assert(!architectureContent.includes("delayed fallback"));
+    assert(!architectureContent.includes("并行对账"));
   });
 
   test("docs define agentId and entryPointId as the canonical normalized contract", () => {
@@ -288,9 +274,10 @@ module.exports = function runNotificationAndDocsTests(h) {
     assert(windowsRuntimeContent.includes("`TOAST_NOTIFY_ENTRY_POINT`"));
   });
 
-  test("cli help documents codex-session-watch completion fallback wording", () => {
+  test("cli help documents codex-session-watch input prompt wording", () => {
     const cliContent = read("bin/cli.js");
-    assert(cliContent.includes("approval events and completion fallback"));
+    assert(cliContent.includes("input prompts"));
+    assert(!cliContent.includes("approval events and completion fallback"));
   });
 
   test("README stays focused on quick setup", () => {
@@ -313,9 +300,12 @@ module.exports = function runNotificationAndDocsTests(h) {
     assert(!docsIndexContent.includes("`npx.cmd @erica-s/ai-agent-notify`"));
     assert(approvalContent.includes('notify = ["ai-agent-notify.cmd"]'));
     assert(approvalContent.includes("codex_hooks = true"));
-    assert(approvalContent.includes('{ "hooks": { ... } }'));
+    assert(approvalContent.includes('"hooks": {'));
+    assert(approvalContent.includes("PermissionRequest"));
+    assert(approvalContent.includes("Stop"));
+    assert(approvalContent.includes("InputRequest"));
     assert(approvalContent.includes("Codex 当前会跳过带 `async: true` 的 hooks"));
-    assert(approvalContent.includes("README"));
+    assert(!approvalContent.includes("parallel"));
   });
 
   test("README stays user-focused while internal docs remain split by topic", () => {
@@ -350,17 +340,12 @@ module.exports = function runNotificationAndDocsTests(h) {
     assert(architectureContent.includes("normalizeIncomingNotification()"));
     assert(architectureContent.includes("codex-session-watch"));
     assert(architectureContent.includes("codex-mcp-sidecar"));
-    assert(architectureContent.includes("启动期 terminal observation"));
-    assert(architectureContent.includes("先尝试 `projectDir` / `cwd` 窗口级回退"));
-    assert(architectureContent.includes("tui.notification_method"));
+    assert(architectureContent.includes("rollout JSONL"));
+    assert(architectureContent.includes("codex-tui.log"));
     assert(approvalContent.includes("codex-session-watch"));
     assert(approvalContent.includes("codex-mcp-sidecar"));
-    assert(approvalContent.includes("为什么 sidecar 不自己 resolve sessionId？"));
-    assert(approvalContent.includes("由 watcher 在扫 rollout / TUI 时统一决定何时把 observation reconcile 成精确 `sessionId` 映射"));
-    assert(approvalContent.includes("按 `projectDir` / `cwd` 的祖先后代关系寻找最可能的窗口"));
-    assert(approvalContent.includes("这个回退故意只回退 `hwnd`"));
-    assert(!approvalContent.includes("没有精确映射就放弃定位增强，只保留通知"));
-    assert(approvalContent.includes("default.rules"));
+    assert(approvalContent.includes("hooks.json"));
+    assert(approvalContent.includes("watcher 只处理 `InputRequest`"));
     assert(windowsRuntimeContent.includes("ai-agent-notify.cmd"));
     assert(windowsRuntimeContent.includes("FRAME_BACKGROUND"));
     assert(historyIndexContent.includes("路线边界"));

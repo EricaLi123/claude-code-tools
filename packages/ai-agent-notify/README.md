@@ -36,14 +36,11 @@ Add to your `~/.claude/settings.json`:
 ## Codex
 
 - `notify = [...]` remains the primary path for Codex turn-complete notifications.
-- Add the `ai_agent_notify_sidecar` block if you also want approval reminders,
-  input prompts, and the watcher-side completion fallback that triggers when
-  the legacy notify payload never reaches this package.
-- For official hooks parallel validation, keep the old route enabled and add
-  `~/.codex/hooks.json`; phase 1 only wires `PermissionRequest` and `Stop`
-  through the shared notification runtime.
-- If you only care about turn-complete notifications, omit the sidecar block;
-  `notify` still works on its own.
+- Official Codex hooks handle `PermissionRequest` and `Stop`.
+- Add the `ai_agent_notify_sidecar` block if you also want watcher-backed input
+  prompts for `InputRequest`.
+- If you only care about turn-complete notifications and hook-based approval
+  prompts, omit the sidecar block; `notify` plus hooks still work on their own.
 
 `~/.codex/config.toml`:
 
@@ -60,7 +57,7 @@ required = false
 startup_timeout_sec = 30
 ```
 
-Optional parallel validation for official Codex hooks:
+Optional official Codex hooks:
 
 `~/.codex/hooks.json`:
 
@@ -85,13 +82,12 @@ Optional parallel validation for official Codex hooks:
 }
 ```
 
-- `codex-session-watch` is the main path for approval reminders, input prompts,
-  and the watcher-side completion fallback.
+- `codex-session-watch` only handles `InputRequest` input prompts.
+- watcher 只处理 `InputRequest`，并继续同时读取 rollout JSONL 和
+  `codex-tui.log` 两条本地信号。
 - Codex 官方 hooks 还需要 `config.toml` 里的 `features.codex_hooks = true`；
   只写 `hooks.json` 不会生效。
 - Codex 当前会跳过带 `async: true` 的 hooks；这里要写同步 command hook。
-- InputRequest still stays on `codex-session-watch`; phase 1 hooks do not
-  replace that path.
 - `codex-mcp-sidecar` will usually auto-start `codex-session-watch`.
 - 归一化事件字段里，`agentId` 只表示 agent 来源，例如 `claude`、`codex`、
   `unknown`；代码入口统一记录在 `entryPointId`，例如 `notify-mode`、
@@ -107,7 +103,7 @@ Optional parallel validation for official Codex hooks:
 
 ## Known Limitations
 
-- **Very long Codex sessions:** turn-complete notifications on Windows can stop firing after a very long session; `clear` or start a new session if this happens, and enable the sidecar/`codex-session-watch` path for fallback coverage.
+- **Very long Codex sessions:** turn-complete notifications on Windows can stop firing after a very long session; `clear` or start a new session if this happens.
 - **Toast source** shows as "Windows PowerShell" instead of "Claude Code"
 - **Windows 10:** `Open` may not work due to OS limitations
 - **macOS / Linux:** not supported

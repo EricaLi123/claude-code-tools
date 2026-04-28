@@ -7,11 +7,7 @@ const NODE_EXECUTABLE = process.execPath;
 const TEST_PROJECT_DIR = "D:\\repo\\sample-project";
 const TEST_PACKAGE_DIR = `${TEST_PROJECT_DIR}\\packages\\ai-agent-notify`;
 
-const approvalNotify = require(path.join(ROOT, "lib", "codex-approval-notify.js"));
-const approvalPending = require(path.join(ROOT, "lib", "codex-approval-pending.js"));
-const approvalRules = require(path.join(ROOT, "lib", "codex-approval-rules.js"));
-const approvalSessionGrants = require(path.join(ROOT, "lib", "codex-approval-session-grants.js"));
-const shellCommandAnalysis = require(path.join(ROOT, "lib", "shell-command-analysis.js"));
+const sessionWatchNotify = require(path.join(ROOT, "lib", "codex-session-watch-notify.js"));
 const sessionEventDescriptors = require(path.join(ROOT, "lib", "codex-session-event-descriptors.js"));
 const sessionRolloutEvents = require(path.join(ROOT, "lib", "codex-session-rollout-events.js"));
 const sessionTuiEvents = require(path.join(ROOT, "lib", "codex-session-tui-events.js"));
@@ -32,14 +28,6 @@ const { normalizeIncomingNotification } = require(path.join(
   "lib",
   "notification-source-parsers.js"
 ));
-
-const approval = {
-  ...approvalNotify,
-  ...approvalPending,
-  ...approvalRules,
-  ...approvalSessionGrants,
-  ...shellCommandAnalysis,
-};
 
 const events = {
   ...sessionEventDescriptors,
@@ -156,7 +144,6 @@ function createHarness() {
     NODE_EXECUTABLE,
     TEST_PACKAGE_DIR,
     TEST_PROJECT_DIR,
-    approval,
     assert,
     assertLocalMarkdownLinksExist,
     canSpawnChildren,
@@ -172,6 +159,7 @@ function createHarness() {
     path,
     read,
     section,
+    sessionWatchNotify,
     sessionWatchRunner,
     sidecarResolver,
     sidecarState,

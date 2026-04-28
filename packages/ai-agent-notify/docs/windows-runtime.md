@@ -140,6 +140,7 @@ Hook 触发 → cli.js
 | --- | --- | --- |
 | Stop | 绿色 | `rgb:33/cc/33` |
 | PermissionRequest | 橙色 | `rgb:ff/99/00` |
+| InputRequest | 橙色 | `rgb:ff/99/00` |
 | default | 蓝色 | `rgb:33/99/ff` |
 
 保留这套设计的原因：
@@ -156,7 +157,7 @@ Hook 触发 → cli.js
 | 变量 | 说明 |
 | --- | --- |
 | `TOAST_NOTIFY_LOG_FILE` | log 文件完整路径 |
-| `TOAST_NOTIFY_EVENT` | hook 事件名（Stop / PermissionRequest） |
+| `TOAST_NOTIFY_EVENT` | hook 事件名（Stop / PermissionRequest / InputRequest） |
 | `TOAST_NOTIFY_HWND` | 终端窗口句柄（找不到时不设置） |
 | `TOAST_NOTIFY_IS_DEV` | 是否为开发版本（`1` = dev，`0` = 生产） |
 | `TOAST_NOTIFY_AGENT_ID` | agent 来源 id |

@@ -1,32 +1,6 @@
-const {
-  cancelPendingApprovalNotification,
-  cancelPendingApprovalNotificationsBySuppression,
-  queuePendingApprovalNotification,
-} = require("./codex-approval-pending");
-const { queuePendingCompletionNotification } = require("./codex-completion-pending");
-const { emitCodexApprovalNotification } = require("./codex-approval-notify");
-const {
-  getApprovedCommandRules,
-  getCodexRequireEscalatedSuppressionReason,
-} = require("./codex-approval-rules");
-const {
-  confirmSessionApprovalForRecentEvents,
-  getSessionRequireEscalatedSuppressionReason,
-  rememberRecentRequireEscalatedEvent,
-} = require("./codex-approval-session-grants");
-const {
-  buildCodexSessionEvent,
-  isApprovedCommandRuleSavedRecord,
-} = require("./codex-session-rollout-events");
-const {
-  buildCodexTuiApprovalEvent,
-  buildCodexTuiInputEvent,
-  parseCodexTuiApprovalConfirmation,
-} = require("./codex-session-tui-events");
-const {
-  getSubagentParentSessionId,
-  parseSessionIdFromRolloutPath,
-} = require("./codex-session-event-descriptors");
+const { buildCodexSessionEvent } = require("./codex-session-rollout-events");
+const { buildCodexTuiInputEvent } = require("./codex-session-tui-events");
+const { emitCodexSessionWatchNotification } = require("./codex-session-watch-notify");
 const { stripUtf8Bom } = require("./shared-utils");
 
 function handleSessionRecord(
@@ -37,12 +11,6 @@ function handleSessionRecord(
     sessionsDir,
     terminal,
     emittedEventKeys,
-    pendingApprovalNotifications,
-    pendingApprovalCallIds,
-    pendingCompletionNotifications,
-    recentRequireEscalatedEvents,
-    sessionApprovalGrants,
-    approvedCommandRuleCache,
   }
 ) {
   let record;
@@ -57,9 +25,6 @@ function handleSessionRecord(
     if (record.payload.id) {
       state.sessionId = record.payload.id;
     }
-    if (!state.subagentParentSessionId) {
-      state.subagentParentSessionId = getSubagentParentSessionId(record.payload);
-    }
     if (record.payload.cwd) {
       state.cwd = record.payload.cwd;
     }
@@ -73,52 +38,6 @@ function handleSessionRecord(
     if (record.payload.turn_id) {
       state.turnId = record.payload.turn_id;
     }
-    if (record.payload.approval_policy) {
-      state.approvalPolicy = record.payload.approval_policy;
-    }
-    if (record.payload.sandbox_policy) {
-      state.sandboxPolicy = record.payload.sandbox_policy;
-    }
-    return;
-  }
-
-  if (
-    record.type === "response_item" &&
-    record.payload &&
-    record.payload.type === "function_call_output" &&
-    record.payload.call_id
-  ) {
-    cancelPendingApprovalNotification({
-      runtime,
-      pendingApprovalNotifications,
-      pendingApprovalCallIds,
-      callId: record.payload.call_id,
-      reason: "function_call_output",
-    });
-    return;
-  }
-
-  if (isApprovedCommandRuleSavedRecord(record)) {
-    const sessionId = getSessionIdForState(state);
-    confirmSessionApprovalForRecentEvents({
-      recentRequireEscalatedEvents,
-      runtime,
-      sessionApprovalGrants,
-      sessionId,
-      source: "approved_rule_saved",
-      turnId: state.turnId || "",
-    });
-    cancelPendingApprovalNotificationsBySuppression({
-      runtime,
-      pendingApprovalNotifications,
-      pendingApprovalCallIds,
-      sessionId,
-      turnId: state.turnId || "",
-      approvalPolicy: state.approvalPolicy || "",
-      sandboxPolicy: state.sandboxPolicy || null,
-      approvedCommandRules: getApprovedRules(approvedCommandRuleCache, runtime),
-      sessionApprovalGrants,
-    });
     return;
   }
 
@@ -130,52 +49,18 @@ function handleSessionRecord(
     return;
   }
 
-  if (record.type === "event_msg" && record.payload.type === "task_complete") {
-    state.enableCompletionCandidates = true;
-  }
-
   const event = buildCodexSessionEvent(state, record);
   if (!event) {
     return;
   }
 
-  if (event.eventName === "Stop") {
-    queuePendingCompletionNotification({
-      runtime,
-      pendingCompletionNotifications,
-      emittedEventKeys,
-      event,
-    });
-    return;
-  }
-
-  if (event.eventType !== "require_escalated_tool_call") {
-    emitCodexApprovalNotification({
-      event,
-      runtime,
-      terminal,
-      emittedEventKeys,
-      origin: "session",
-      sessionsDir,
-    });
-    return;
-  }
-
-  processRequireEscalatedEvent({
+  emitCodexSessionWatchNotification({
     event,
     runtime,
     terminal,
     emittedEventKeys,
-    pendingApprovalNotifications,
-    pendingApprovalCallIds,
-    recentRequireEscalatedEvents,
-    sessionApprovalGrants,
-    approvedCommandRuleCache,
-    sessionsDir,
     origin: "session",
-    approvalPolicy: state.approvalPolicy,
-    sandboxPolicy: state.sandboxPolicy,
-    allowImmediateDispatch: true,
+    sessionsDir,
   });
 }
 
@@ -188,154 +73,27 @@ function handleCodexTuiLogLine(
     terminal,
     emittedEventKeys,
     sessionProjectDirs,
-    sessionApprovalContexts,
-    pendingApprovalNotifications,
-    pendingApprovalCallIds,
-    recentRequireEscalatedEvents,
-    sessionApprovalGrants,
-    approvedCommandRuleCache,
   }
 ) {
   if (!line || !line.trim()) {
     return;
   }
 
-  const confirmation = parseCodexTuiApprovalConfirmation(line);
-  if (confirmation) {
-    const approvalContext = sessionApprovalContexts.get(confirmation.sessionId || "");
-    confirmSessionApprovalForRecentEvents({
-      recentRequireEscalatedEvents,
-      runtime,
-      sessionApprovalGrants,
-      sessionId: confirmation.sessionId,
-      source: confirmation.source,
-    });
-    cancelPendingApprovalNotificationsBySuppression({
-      runtime,
-      pendingApprovalNotifications,
-      pendingApprovalCallIds,
-      sessionId: confirmation.sessionId,
-      approvalPolicy: (approvalContext && approvalContext.approvalPolicy) || "",
-      sandboxPolicy: (approvalContext && approvalContext.sandboxPolicy) || null,
-      sessionApprovalGrants,
-    });
-    return;
-  }
-
-  const event =
-    buildCodexTuiApprovalEvent(tuiState, line, {
-      sessionProjectDirs,
-      sessionApprovalContexts,
-    }) ||
-    buildCodexTuiInputEvent(tuiState, line, {
-      sessionProjectDirs,
-    });
+  const event = buildCodexTuiInputEvent(tuiState, line, {
+    sessionProjectDirs,
+  });
   if (!event) {
     return;
   }
 
-  if (event.eventType !== "require_escalated_tool_call") {
-    emitCodexApprovalNotification({
-      event,
-      runtime,
-      terminal,
-      emittedEventKeys,
-      origin: "tui",
-      sessionsDir,
-    });
-    return;
-  }
-
-  const approvalContext = sessionApprovalContexts.get(event.sessionId || "");
-  processRequireEscalatedEvent({
+  emitCodexSessionWatchNotification({
     event,
     runtime,
     terminal,
     emittedEventKeys,
-    pendingApprovalNotifications,
-    pendingApprovalCallIds,
-    recentRequireEscalatedEvents,
-    sessionApprovalGrants,
-    approvedCommandRuleCache,
-    sessionsDir,
     origin: "tui",
-    approvalPolicy: approvalContext && approvalContext.approvalPolicy,
-    sandboxPolicy: approvalContext && approvalContext.sandboxPolicy,
-    allowImmediateDispatch: false,
+    sessionsDir,
   });
-}
-
-function processRequireEscalatedEvent({
-  event,
-  runtime,
-  terminal,
-  emittedEventKeys,
-  pendingApprovalNotifications,
-  pendingApprovalCallIds,
-  recentRequireEscalatedEvents,
-  sessionApprovalGrants,
-  approvedCommandRuleCache,
-  sessionsDir,
-  origin,
-  approvalPolicy,
-  sandboxPolicy,
-  allowImmediateDispatch,
-}) {
-  const suppressionReason = getCodexRequireEscalatedSuppressionReason({
-    event,
-    approvalPolicy,
-    sandboxPolicy,
-    approvedCommandRules: getApprovedRules(approvedCommandRuleCache, runtime),
-  });
-  if (suppressionReason) {
-    logSuppressedRequireEscalated(runtime, origin, event, suppressionReason);
-    return;
-  }
-
-  const sessionSuppressionReason = getSessionRequireEscalatedSuppressionReason({
-    event,
-    sessionApprovalGrants,
-  });
-  if (sessionSuppressionReason) {
-    logSuppressedRequireEscalated(runtime, origin, event, sessionSuppressionReason);
-    return;
-  }
-
-  rememberRecentRequireEscalatedEvent(recentRequireEscalatedEvents, event);
-
-  if (allowImmediateDispatch && event.approvalDispatch === "immediate") {
-    emitCodexApprovalNotification({
-      event,
-      runtime,
-      terminal,
-      emittedEventKeys,
-      origin,
-      sessionsDir,
-    });
-    return;
-  }
-
-  queuePendingApprovalNotification({
-    runtime,
-    pendingApprovalNotifications,
-    pendingApprovalCallIds,
-    emittedEventKeys,
-    event,
-  });
-}
-
-function getApprovedRules(approvedCommandRuleCache, runtime) {
-  return getApprovedCommandRules(approvedCommandRuleCache, runtime.log);
-}
-
-function getSessionIdForState(state) {
-  return state.sessionId || parseSessionIdFromRolloutPath(state.filePath) || "";
-}
-
-function logSuppressedRequireEscalated(runtime, origin, event, reason) {
-  runtime.log(
-    `suppressed ${origin} require_escalated sessionId=${event.sessionId || "unknown"} turnId=${event.turnId || ""} reason=${reason}`
-  );
 }
 
 module.exports = {

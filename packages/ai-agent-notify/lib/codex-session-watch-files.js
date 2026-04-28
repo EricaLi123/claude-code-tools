@@ -2,10 +2,7 @@ const fs = require("fs");
 const path = require("path");
 const { StringDecoder } = require("string_decoder");
 
-const {
-  getSubagentParentSessionId,
-  parseSessionIdFromRolloutPath,
-} = require("./codex-session-event-descriptors");
+const { parseSessionIdFromRolloutPath } = require("./codex-session-event-descriptors");
 const { fileExistsCaseInsensitive, stripUtf8Bom } = require("./shared-utils");
 
 function listRolloutFiles(rootDir, log) {
@@ -51,11 +48,8 @@ function createSessionFileState(filePath) {
   return {
     filePath,
     sessionId: parseSessionIdFromRolloutPath(filePath),
-    subagentParentSessionId: "",
     cwd: "",
     turnId: "",
-    approvalPolicy: "",
-    sandboxPolicy: null,
     position: 0,
     partial: "",
     decoder: new StringDecoder("utf8"),
@@ -74,10 +68,7 @@ function createTailFileState(filePath) {
 function bootstrapExistingSessionFileState(state, stat, log) {
   const metadata = readRolloutMetadata(state.filePath, log);
   state.sessionId = metadata.sessionId || state.sessionId;
-  state.subagentParentSessionId = metadata.subagentParentSessionId || state.subagentParentSessionId;
   state.cwd = metadata.cwd || state.cwd;
-  state.approvalPolicy = metadata.approvalPolicy || state.approvalPolicy;
-  state.sandboxPolicy = metadata.sandboxPolicy || state.sandboxPolicy;
   bootstrapTailFileState(state, stat);
 }
 
@@ -90,10 +81,7 @@ function bootstrapTailFileState(state, stat) {
 function readRolloutMetadata(filePath, log) {
   const result = {
     sessionId: parseSessionIdFromRolloutPath(filePath),
-    subagentParentSessionId: "",
     cwd: "",
-    approvalPolicy: "",
-    sandboxPolicy: null,
     latestEventAtMs: 0,
   };
 
@@ -143,9 +131,6 @@ function consumeRolloutMetadataChunk(result, buffer, preferLatestTurnContext) {
       if (record.payload.id) {
         result.sessionId = record.payload.id;
       }
-      if (!result.subagentParentSessionId) {
-        result.subagentParentSessionId = getSubagentParentSessionId(record.payload);
-      }
       if (!result.cwd && record.payload.cwd) {
         result.cwd = record.payload.cwd;
       }
@@ -154,15 +139,6 @@ function consumeRolloutMetadataChunk(result, buffer, preferLatestTurnContext) {
     if (record.type === "turn_context" && record.payload) {
       if ((preferLatestTurnContext || !result.cwd) && record.payload.cwd) {
         result.cwd = record.payload.cwd;
-      }
-      if ((preferLatestTurnContext || !result.approvalPolicy) && record.payload.approval_policy) {
-        result.approvalPolicy = record.payload.approval_policy;
-      }
-      if (
-        (preferLatestTurnContext || !result.sandboxPolicy) &&
-        record.payload.sandbox_policy
-      ) {
-        result.sandboxPolicy = record.payload.sandbox_policy;
       }
     }
   }

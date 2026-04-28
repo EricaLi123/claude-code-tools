@@ -3,25 +3,19 @@ const {
   findSidecarTerminalContextForSession,
   reconcileSidecarSessions,
 } = require("./codex-sidecar-matcher");
-const { shouldEmitCodexEventNotification } = require("./codex-event-reconciliation");
 const { emitNotification } = require("./notify-runtime");
 
-function emitCodexApprovalNotification({
+function emitCodexSessionWatchNotification({
   event,
   runtime,
   terminal,
   emittedEventKeys,
   origin,
   sessionsDir,
-  shouldEmitCodexEventNotificationImpl = shouldEmitCodexEventNotification,
-  resolveApprovalTerminalContextImpl = resolveApprovalTerminalContext,
+  resolveSessionWatchTerminalContextImpl = resolveSessionWatchTerminalContext,
   emitNotificationImpl = emitNotification,
 }) {
   if (!shouldEmitEventKey(emittedEventKeys, event.dedupeKey)) {
-    return false;
-  }
-
-  if (!shouldEmitCodexEventNotificationImpl(event, { runtime })) {
     return false;
   }
 
@@ -29,7 +23,7 @@ function emitCodexApprovalNotification({
     `${origin} event matched type=${event.eventType} sessionId=${event.sessionId || "unknown"} turnId=${event.turnId || ""} cwd=${event.projectDir || ""}`
   );
 
-  const notificationTerminal = resolveApprovalTerminalContextImpl({
+  const notificationTerminal = resolveSessionWatchTerminalContextImpl({
     sessionId: event.sessionId,
     projectDir: event.projectDir,
     fallbackTerminal: terminal,
@@ -76,7 +70,13 @@ function shouldEmitEventKey(emittedEventKeys, eventKey) {
   return true;
 }
 
-function resolveApprovalTerminalContext({ sessionId, projectDir, fallbackTerminal, log, sessionsDir }) {
+function resolveSessionWatchTerminalContext({
+  sessionId,
+  projectDir,
+  fallbackTerminal,
+  log,
+  sessionsDir,
+}) {
   let terminal = findSidecarTerminalContextForSession(sessionId, log);
   if ((!terminal || (!terminal.hwnd && !terminal.shellPid)) && sessionsDir) {
     const reconciled = reconcileSidecarSessions({
@@ -87,7 +87,7 @@ function resolveApprovalTerminalContext({ sessionId, projectDir, fallbackTermina
     });
     if (reconciled > 0 && typeof log === "function") {
       log(
-        `approval terminal watcher reconcile retried sessionId=${sessionId || "unknown"} projectDir=${projectDir || ""} reconciled=${reconciled}`
+        `session-watch terminal reconcile retried sessionId=${sessionId || "unknown"} projectDir=${projectDir || ""} reconciled=${reconciled}`
       );
     }
     terminal = findSidecarTerminalContextForSession(sessionId, log);
@@ -96,7 +96,7 @@ function resolveApprovalTerminalContext({ sessionId, projectDir, fallbackTermina
   if (!terminal || (!terminal.hwnd && !terminal.shellPid)) {
     if (typeof log === "function") {
       log(
-        `approval terminal exact sidecar match missed sessionId=${sessionId || "unknown"} projectDir=${projectDir || ""}`
+        `session-watch terminal exact sidecar match missed sessionId=${sessionId || "unknown"} projectDir=${projectDir || ""}`
       );
     }
 
@@ -104,7 +104,7 @@ function resolveApprovalTerminalContext({ sessionId, projectDir, fallbackTermina
     if (!projectFallback || !projectFallback.hwnd) {
       if (typeof log === "function") {
         log(
-          `approval terminal resolved via default fallback sessionId=${sessionId || "unknown"} projectDir=${projectDir || ""} reason=no_sidecar_match`
+          `session-watch terminal resolved via default fallback sessionId=${sessionId || "unknown"} projectDir=${projectDir || ""} reason=no_sidecar_match`
         );
       }
       return fallbackTerminal;
@@ -112,7 +112,7 @@ function resolveApprovalTerminalContext({ sessionId, projectDir, fallbackTermina
 
     if (typeof log === "function") {
       log(
-        `approval terminal resolved via project-dir fallback sessionId=${sessionId || "unknown"} projectDir=${projectDir || ""} hwnd=${projectFallback.hwnd || ""}`
+        `session-watch terminal resolved via project-dir fallback sessionId=${sessionId || "unknown"} projectDir=${projectDir || ""} hwnd=${projectFallback.hwnd || ""}`
       );
     }
 
@@ -126,7 +126,7 @@ function resolveApprovalTerminalContext({ sessionId, projectDir, fallbackTermina
 
   if (typeof log === "function") {
     log(
-      `approval terminal resolved via exact sidecar match sessionId=${sessionId || "unknown"} shellPid=${terminal.shellPid || ""} hwnd=${terminal.hwnd || ""}`
+      `session-watch terminal resolved via exact sidecar match sessionId=${sessionId || "unknown"} shellPid=${terminal.shellPid || ""} hwnd=${terminal.hwnd || ""}`
     );
   }
 
@@ -138,7 +138,7 @@ function resolveApprovalTerminalContext({ sessionId, projectDir, fallbackTermina
 }
 
 module.exports = {
-  emitCodexApprovalNotification,
-  resolveApprovalTerminalContext,
+  emitCodexSessionWatchNotification,
+  resolveSessionWatchTerminalContext,
   shouldEmitEventKey,
 };

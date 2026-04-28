@@ -1,12 +1,12 @@
 module.exports = function runSidecarTests(h) {
   const {
-    approval,
     assert,
     fs,
     mcpServer,
     path,
     ROOT,
     section,
+    sessionWatchNotify,
     sidecarResolver,
     sidecarState,
     test,
@@ -383,7 +383,7 @@ module.exports = function runSidecarTests(h) {
     }
   });
 
-  test("approval terminal resolution falls back to project-dir hwnd when no exact session mapping exists", () => {
+  test("session watcher terminal resolution falls back to project-dir hwnd when no exact session mapping exists", () => {
     const recordId = `test-sidecar-project-${process.pid}-${Date.now()}`;
     const projectDir = path.join(ROOT, `.tmp-sidecar-project-${Date.now()}`);
     const recordCwd = path.join(projectDir, "subdir");
@@ -403,7 +403,7 @@ module.exports = function runSidecarTests(h) {
         isWindowsTerminal: true,
       });
 
-      const terminal = approval.resolveApprovalTerminalContext({
+      const terminal = sessionWatchNotify.resolveSessionWatchTerminalContext({
         sessionId: `missing-session-${Date.now()}`,
         projectDir,
         fallbackTerminal: {
@@ -420,7 +420,7 @@ module.exports = function runSidecarTests(h) {
       assert(terminal.isWindowsTerminal === false);
       assert(
         logs.some((message) =>
-          message.includes("approval terminal exact sidecar match missed")
+          message.includes("session-watch terminal exact sidecar match missed")
         )
       );
       assert(
@@ -430,7 +430,7 @@ module.exports = function runSidecarTests(h) {
       );
       assert(
         logs.some((message) =>
-          message.includes("approval terminal resolved via project-dir fallback")
+          message.includes("session-watch terminal resolved via project-dir fallback")
         )
       );
     } finally {
@@ -438,15 +438,15 @@ module.exports = function runSidecarTests(h) {
     }
   });
 
-  test("approval terminal resolution lets watcher reconcile raw observations into exact matches", () => {
-    const fixtureRoot = path.join(ROOT, `.tmp-sidecar-approval-reconcile-${Date.now()}`);
+  test("session watcher terminal resolution lets watcher reconcile raw observations into exact matches", () => {
+    const fixtureRoot = path.join(ROOT, `.tmp-sidecar-watch-reconcile-${Date.now()}`);
     const sessionsDir = path.join(fixtureRoot, "2026", "04", "04");
-    const sessionId = `session-approval-reconcile-${Date.now()}`;
+    const sessionId = `session-watch-reconcile-${Date.now()}`;
     const rolloutPath = path.join(
       sessionsDir,
       `rollout-2026-04-04T16-00-00-${sessionId}.jsonl`
     );
-    const recordId = `test-sidecar-approval-reconcile-${process.pid}-${Date.now()}`;
+    const recordId = `test-sidecar-watch-reconcile-${process.pid}-${Date.now()}`;
     const startedAt = new Date().toISOString();
     const logs = [];
 
@@ -487,7 +487,7 @@ module.exports = function runSidecarTests(h) {
         isWindowsTerminal: true,
       });
 
-      const terminal = approval.resolveApprovalTerminalContext({
+      const terminal = sessionWatchNotify.resolveSessionWatchTerminalContext({
         sessionId,
         projectDir: TEST_PROJECT_DIR,
         fallbackTerminal: {
@@ -510,12 +510,12 @@ module.exports = function runSidecarTests(h) {
       );
       assert(
         logs.some((message) =>
-          message.includes("approval terminal watcher reconcile retried")
+          message.includes("session-watch terminal reconcile retried")
         )
       );
       assert(
         logs.some((message) =>
-          message.includes("approval terminal resolved via exact sidecar match")
+          message.includes("session-watch terminal resolved via exact sidecar match")
         )
       );
     } finally {

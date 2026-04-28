@@ -17,15 +17,6 @@ function parseJsonObjectMaybe(value) {
   return typeof value === "object" && !Array.isArray(value) ? value : null;
 }
 
-function getCodexExecApprovalDescriptor(toolName, args) {
-  const command = typeof args.command === "string" ? args.command.trim() : "";
-  if (command) {
-    return `${toolName || "tool"}:${command}`;
-  }
-
-  return toolName || "tool";
-}
-
 function getCodexInputRequestDescriptor(args) {
   const questions = getCodexInputRequestQuestions(args);
   if (!questions.length) {
@@ -60,19 +51,11 @@ function getCodexInputRequestMessage(args) {
   return questions.length > 1 ? `${firstQuestion} (+${questions.length - 1} more)` : firstQuestion;
 }
 
-function buildApprovalDedupeKey({
-  sessionId,
-  turnId,
-  callId,
-  approvalId,
-  fallbackId,
-  approvalKind,
-  descriptor,
-}) {
+function buildSessionEventDedupeKey({ sessionId, turnId, fallbackId, eventKind, descriptor }) {
   return [
     sessionId || "unknown",
-    approvalKind || "permission",
-    turnId || approvalId || callId || fallbackId || "unknown",
+    eventKind || "event",
+    turnId || fallbackId || "unknown",
     descriptor || "",
   ].join("|");
 }
@@ -82,33 +65,6 @@ function parseSessionIdFromRolloutPath(filePath) {
     .basename(filePath)
     .match(/^rollout-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-(.+)\.jsonl$/i);
   return match ? match[1] : "";
-}
-
-function getSubagentParentSessionId(payload) {
-  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
-    return "";
-  }
-
-  if (typeof payload.forked_from_id === "string" && payload.forked_from_id.trim()) {
-    return payload.forked_from_id.trim();
-  }
-
-  const source = payload.source;
-  if (!source || typeof source !== "object" || Array.isArray(source)) {
-    return "";
-  }
-
-  const subagent = source.subagent;
-  if (!subagent || typeof subagent !== "object" || Array.isArray(subagent)) {
-    return "";
-  }
-
-  const threadSpawn = subagent.thread_spawn;
-  if (!threadSpawn || typeof threadSpawn !== "object" || Array.isArray(threadSpawn)) {
-    return "";
-  }
-
-  return typeof threadSpawn.parent_thread_id === "string" ? threadSpawn.parent_thread_id.trim() : "";
 }
 
 function normalizeInlineText(value) {
@@ -128,11 +84,9 @@ function getCodexInputRequestQuestions(args) {
 }
 
 module.exports = {
-  buildApprovalDedupeKey,
-  getCodexExecApprovalDescriptor,
+  buildSessionEventDedupeKey,
   getCodexInputRequestDescriptor,
   getCodexInputRequestMessage,
-  getSubagentParentSessionId,
   parseJsonObjectMaybe,
   parseSessionIdFromRolloutPath,
 };
