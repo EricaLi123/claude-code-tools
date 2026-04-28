@@ -50,6 +50,9 @@ module.exports = function runStructureAndRuntimeTests(h) {
     "scripts/start-hidden.vbs",
     "scripts/start-tab-color-watcher.ps1",
     "scripts/tab-color-watcher.ps1",
+    "mock-codex-permission/README.md",
+    "mock-codex-permission/target.txt",
+    "mock-codex-permission/.codex/config.toml",
     "docs/README.md",
     "docs/principles.md",
     "docs/architecture.md",
@@ -118,6 +121,8 @@ module.exports = function runStructureAndRuntimeTests(h) {
   const sessionWatchStreamsContent = read("lib/codex-session-watch-streams.js");
   const notificationSourceDisplayContent = read("lib/notification-source-display.js");
   const notificationSourceParsersContent = read("lib/notification-source-parsers.js");
+  const mockCodexPermissionConfigContent = read("mock-codex-permission/.codex/config.toml");
+  const mockCodexPermissionReadmeContent = read("mock-codex-permission/README.md");
   const shellCommandAnalysisContent = read("lib/shell-command-analysis.js");
   const sharedUtilsContent = read("lib/shared-utils.js");
   const notifyContent = read("scripts/notify.ps1");
@@ -342,6 +347,14 @@ module.exports = function runStructureAndRuntimeTests(h) {
     assert(notificationSourceParsersContent.includes("function getIncomingPayloadCandidates("));
     assert(notificationSourceDisplayContent.includes("function createNotificationSpec("));
     assert(notificationSourceDisplayContent.includes("function getSourceFamily("));
+  });
+
+  test("mock-codex-permission fixture forces local permission requests for Codex", () => {
+    assert(mockCodexPermissionConfigContent.includes('approval_policy = "on-request"'));
+    assert(mockCodexPermissionConfigContent.includes('sandbox_mode = "read-only"'));
+    assert(mockCodexPermissionReadmeContent.includes("PermissionRequest"));
+    assert(mockCodexPermissionReadmeContent.includes(".codex/config.toml"));
+    assert(mockCodexPermissionReadmeContent.includes("trust"));
   });
 
   test("windows path normalizer keeps blank values blank", () => {
