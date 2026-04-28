@@ -31,6 +31,7 @@ function emitCodexApprovalNotification({
 
   const child = emitNotification({
     source: event.source,
+    entryPointId: event.entryPointId,
     eventName: event.eventName,
     title: event.title,
     message: event.message,

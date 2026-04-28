@@ -199,7 +199,16 @@ function collectFingerprintFiles(targetPath, files) {
   }
 }
 
-function emitNotification({ source, eventName, title, message, rawEventType, runtime, terminal }) {
+function emitNotification({
+  source,
+  entryPointId,
+  eventName,
+  title,
+  message,
+  rawEventType,
+  runtime,
+  terminal,
+}) {
   const envVars = {
     PATH: process.env.PATH || "",
     PATHEXT: process.env.PATHEXT || "",
@@ -212,6 +221,10 @@ function emitNotification({ source, eventName, title, message, rawEventType, run
 
   if (source) {
     envVars.TOAST_NOTIFY_SOURCE = source;
+  }
+
+  if (entryPointId) {
+    envVars.TOAST_NOTIFY_ENTRY_POINT = entryPointId;
   }
 
   if (title) {

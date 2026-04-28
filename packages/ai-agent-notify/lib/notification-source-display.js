@@ -46,7 +46,7 @@ function inferDisplaySource(sourceId, entryPointId) {
     return "";
   }
 
-  return entryPointId ? `${sourceId}.${entryPointId}` : sourceId;
+  return sourceId;
 }
 
 function inferNotificationTitle(eventName) {

@@ -21,6 +21,7 @@ Write-Log "started"
 # cli.js passes the dev/prod marker through the environment.
 $isDev = $env:TOAST_NOTIFY_IS_DEV -ne "0"
 $source = if ($env:TOAST_NOTIFY_SOURCE) { $env:TOAST_NOTIFY_SOURCE } else { '' }
+$entryPointId = if ($env:TOAST_NOTIFY_ENTRY_POINT) { $env:TOAST_NOTIFY_ENTRY_POINT } else { '' }
 
 # 1. Resolve title/message from the env vars prepared by cli.js.
 $eventName = if ($env:TOAST_NOTIFY_EVENT) { $env:TOAST_NOTIFY_EVENT } else { '' }
@@ -146,7 +147,8 @@ $iconPath = Get-NotifyIcon $iconKey $terminalExePath
 # 3. Build the toast payload.
 # Dev builds prepend [DEV] to the toast title.
 $devMarker = if ($isDev) { "[DEV] " } else { "" }
-$notificationTitle = "$devMarker$Title ($terminalName)"
+$entryPointMarker = if ($entryPointId) { "[$entryPointId] " } else { "" }
+$notificationTitle = "$devMarker$entryPointMarker$Title ($terminalName)"
 $escapedTitle = [System.Security.SecurityElement]::Escape($notificationTitle)
 $escapedMessage = [System.Security.SecurityElement]::Escape($Message)
 

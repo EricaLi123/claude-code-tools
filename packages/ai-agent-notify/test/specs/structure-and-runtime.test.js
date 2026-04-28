@@ -355,11 +355,13 @@ module.exports = function runStructureAndRuntimeTests(h) {
     assert(!notifyContent.includes('activationType=`"protocol`"'));
     assert(notifyContent.includes("Needs Approval"));
     assert(!notifyContent.includes("Needs Permission"));
+    assert(notifyContent.includes("TOAST_NOTIFY_ENTRY_POINT"));
     assert(notifyContent.includes("[$source] $baseTitle"));
   });
 
   test("notify-runtime.js passes neutral notify env vars to PowerShell", () => {
     assert(notifyRuntimeContent.includes("TOAST_NOTIFY_EVENT"));
+    assert(notifyRuntimeContent.includes("TOAST_NOTIFY_ENTRY_POINT"));
     assert(notifyRuntimeContent.includes("TOAST_NOTIFY_SOURCE"));
     assert(notifyRuntimeContent.includes("TOAST_NOTIFY_TITLE"));
     assert(notifyRuntimeContent.includes("TOAST_NOTIFY_MESSAGE"));

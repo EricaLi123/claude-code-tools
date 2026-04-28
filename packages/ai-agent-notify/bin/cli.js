@@ -140,6 +140,7 @@ async function runDefaultNotifyMode(argv, options = {}) {
 
   const child = emitNotificationImpl({
     source: notification.source,
+    entryPointId: notification.entryPointId,
     eventName: notification.eventName,
     title: notification.title,
     message: notification.message,

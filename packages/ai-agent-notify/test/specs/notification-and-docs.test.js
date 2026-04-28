@@ -25,7 +25,7 @@ module.exports = function runNotificationAndDocsTests(h) {
 
     assert(normalized.sourceId === "claude");
     assert(normalized.entryPointId === "notify-mode");
-    assert(normalized.source === "claude.notify-mode");
+    assert(normalized.source === "claude");
     assert(normalized.eventName === "PermissionRequest");
     assert(normalized.sessionId === "claude-session-1");
     assert(normalized.title === "Needs Approval");
@@ -40,7 +40,7 @@ module.exports = function runNotificationAndDocsTests(h) {
       eventName: "InputRequest",
     });
 
-    assert(normalized.source === "codex.rollout-watch");
+    assert(normalized.source === "codex");
     assert(normalized.eventName === "InputRequest");
     assert(normalized.title === "Input Needed");
     assert(normalized.message === "Waiting for your input");
@@ -66,7 +66,7 @@ module.exports = function runNotificationAndDocsTests(h) {
 
     assert(normalized.sourceId === "codex-legacy-notify");
     assert(normalized.entryPointId === "completion-fallback");
-    assert(normalized.source === "codex-legacy-notify.completion-fallback");
+    assert(normalized.source === "codex-legacy-notify");
   });
 
   test("notification source normalizer canonicalizes source-prefixed stop titles", () => {
@@ -104,7 +104,7 @@ module.exports = function runNotificationAndDocsTests(h) {
 
     assert(normalized.sourceId === "codex");
     assert(normalized.entryPointId === "notify-mode");
-    assert(normalized.source === "codex.notify-mode");
+    assert(normalized.source === "codex");
     assert(normalized.eventName === "Stop");
     assert(normalized.title === "Done");
     assert(normalized.message === "Task finished");
