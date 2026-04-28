@@ -38,7 +38,7 @@ function Send-Toast([string]$eventName, [string]$testHwnd = '', [string]$title =
     $psi.EnvironmentVariables['TOAST_NOTIFY_HWND']     = $testHwnd
     $psi.EnvironmentVariables['TOAST_NOTIFY_TITLE']    = $title
     $psi.EnvironmentVariables['TOAST_NOTIFY_MESSAGE']  = 'Toast test message'
-    $psi.EnvironmentVariables['TOAST_NOTIFY_SOURCE']   = 'Test'
+    $psi.EnvironmentVariables['TOAST_NOTIFY_AGENT_ID'] = 'Test'
 
     $proc = [System.Diagnostics.Process]::Start($psi)
     $stderr = $proc.StandardError.ReadToEnd()

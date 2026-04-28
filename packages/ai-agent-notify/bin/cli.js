@@ -6,6 +6,9 @@ const path = require("path");
 const { runCodexMcpSidecarMode } = require("../lib/codex-mcp-sidecar-mode");
 const { runCodexSessionWatchMode } = require("../lib/codex-session-watch-runner");
 const {
+  shouldEmitCodexEventNotification,
+} = require("../lib/codex-event-reconciliation");
+const {
   writeCodexCompletionReceiptForNotification,
 } = require("../lib/codex-completion-receipts");
 const {
@@ -110,6 +113,7 @@ async function runDefaultNotifyMode(argv, options = {}) {
     emitNotificationImpl = emitNotification,
     exitProcessImpl = process.exit,
     normalizeIncomingNotificationImpl = normalizeIncomingNotification,
+    shouldEmitCodexEventNotificationImpl = shouldEmitCodexEventNotification,
     stdinData = readStdin(),
     writeCodexCompletionReceiptForNotificationImpl = writeCodexCompletionReceiptForNotification,
   } = options;
@@ -126,9 +130,14 @@ async function runDefaultNotifyMode(argv, options = {}) {
   });
 
   runtime.log(
-    `started mode=notify source=${notification.sourceId} transport=${notification.transport || "none"} session=${sessionId} packageRoot=${runtime.buildInfo.packageRoot}`
+    `started mode=notify agent=${notification.agentId} transport=${notification.transport || "none"} session=${sessionId} packageRoot=${runtime.buildInfo.packageRoot}`
   );
   runtime.log(notification.debugSummary);
+
+  if (!shouldEmitCodexEventNotificationImpl(notification, { runtime })) {
+    exitProcessImpl(0);
+    return null;
+  }
 
   if (shouldSkipNotificationDispatch(process.env)) {
     runtime.log("skipping notification dispatch because GITHUB_ACTIONS=true");
@@ -139,7 +148,7 @@ async function runDefaultNotifyMode(argv, options = {}) {
   const terminal = detectTerminalContextImpl(argv, runtime.log);
 
   const child = emitNotificationImpl({
-    source: notification.source,
+    agentId: notification.agentId,
     entryPointId: notification.entryPointId,
     eventName: notification.eventName,
     title: notification.title,

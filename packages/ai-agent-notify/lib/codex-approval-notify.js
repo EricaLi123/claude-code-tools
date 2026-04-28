@@ -3,6 +3,7 @@ const {
   findSidecarTerminalContextForSession,
   reconcileSidecarSessions,
 } = require("./codex-sidecar-matcher");
+const { shouldEmitCodexEventNotification } = require("./codex-event-reconciliation");
 const { emitNotification } = require("./notify-runtime");
 
 function emitCodexApprovalNotification({
@@ -12,8 +13,15 @@ function emitCodexApprovalNotification({
   emittedEventKeys,
   origin,
   sessionsDir,
+  shouldEmitCodexEventNotificationImpl = shouldEmitCodexEventNotification,
+  resolveApprovalTerminalContextImpl = resolveApprovalTerminalContext,
+  emitNotificationImpl = emitNotification,
 }) {
   if (!shouldEmitEventKey(emittedEventKeys, event.dedupeKey)) {
+    return false;
+  }
+
+  if (!shouldEmitCodexEventNotificationImpl(event, { runtime })) {
     return false;
   }
 
@@ -21,7 +29,7 @@ function emitCodexApprovalNotification({
     `${origin} event matched type=${event.eventType} sessionId=${event.sessionId || "unknown"} turnId=${event.turnId || ""} cwd=${event.projectDir || ""}`
   );
 
-  const notificationTerminal = resolveApprovalTerminalContext({
+  const notificationTerminal = resolveApprovalTerminalContextImpl({
     sessionId: event.sessionId,
     projectDir: event.projectDir,
     fallbackTerminal: terminal,
@@ -29,8 +37,8 @@ function emitCodexApprovalNotification({
     sessionsDir,
   });
 
-  const child = emitNotification({
-    source: event.source,
+  const child = emitNotificationImpl({
+    agentId: event.agentId,
     entryPointId: event.entryPointId,
     eventName: event.eventName,
     title: event.title,

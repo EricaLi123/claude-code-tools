@@ -28,9 +28,9 @@ module.exports = function runCodexEventTests(h) {
     );
 
     assert(event);
-    assert(event.sourceId === "codex");
+    assert(event.agentId === "codex");
     assert(event.entryPointId === "rollout-watch");
-    assert(event.source === "codex");
+    assert(!("source" in event));
     assert(event.eventName === "PermissionRequest");
     assert(event.eventType === "require_escalated_tool_call");
     assert(event.approvalDispatch === "pending");
@@ -75,9 +75,9 @@ module.exports = function runCodexEventTests(h) {
     );
 
     assert(event);
-    assert(event.sourceId === "codex");
+    assert(event.agentId === "codex");
     assert(event.entryPointId === "tui-watch");
-    assert(event.source === "codex");
+    assert(!("source" in event));
     assert(event.eventType === "require_escalated_tool_call");
     assert(event.approvalDispatch === "pending");
     assert(event.dedupeKey === "session-3|exec|turn-3|shell_command:Get-Date");
@@ -105,9 +105,9 @@ module.exports = function runCodexEventTests(h) {
     );
 
     assert(event);
-    assert(event.sourceId === "codex");
+    assert(event.agentId === "codex");
     assert(event.entryPointId === "rollout-watch");
-    assert(event.source === "codex");
+    assert(!("source" in event));
     assert(event.eventType === "apply_patch_approval_request");
     assert(event.dedupeKey === "session-4|patch|turn-4|");
   });
@@ -133,9 +133,9 @@ module.exports = function runCodexEventTests(h) {
     );
 
     assert(event);
-    assert(event.sourceId === "codex");
+    assert(event.agentId === "codex");
     assert(event.entryPointId === "rollout-watch");
-    assert(event.source === "codex");
+    assert(!("source" in event));
     assert(event.eventName === "Stop");
     assert(event.eventType === "task_complete");
     assert(event.dedupeKey === "session-stop|turn-stop|Stop");
@@ -274,9 +274,9 @@ module.exports = function runCodexEventTests(h) {
     );
 
     assert(event);
-    assert(event.sourceId === "codex");
+    assert(event.agentId === "codex");
     assert(event.entryPointId === "rollout-watch");
-    assert(event.source === "codex");
+    assert(!("source" in event));
     assert(event.eventName === "InputRequest");
     assert(event.title === "Input Needed");
     assert(event.message === promptText);
@@ -307,9 +307,9 @@ module.exports = function runCodexEventTests(h) {
     );
 
     assert(event);
-    assert(event.sourceId === "codex");
+    assert(event.agentId === "codex");
     assert(event.entryPointId === "tui-watch");
-    assert(event.source === "codex");
+    assert(!("source" in event));
     assert(event.eventName === "InputRequest");
     assert(event.title === "Input Needed");
     assert(event.message === promptText);

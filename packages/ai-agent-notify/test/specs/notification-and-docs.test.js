@@ -12,7 +12,7 @@ module.exports = function runNotificationAndDocsTests(h) {
 
   section("Notifications and docs");
 
-  test("notification source normalizer recognizes Claude hook payloads", () => {
+  test("notification agent normalizer recognizes Claude hook payloads", () => {
     const normalized = normalizeIncomingNotification({
       argv: [],
       stdinData: JSON.stringify({
@@ -23,9 +23,9 @@ module.exports = function runNotificationAndDocsTests(h) {
       env: {},
     });
 
-    assert(normalized.sourceId === "claude");
+    assert(normalized.agentId === "claude");
     assert(normalized.entryPointId === "notify-mode");
-    assert(normalized.source === "claude");
+    assert(!("source" in normalized));
     assert(normalized.eventName === "PermissionRequest");
     assert(normalized.sessionId === "claude-session-1");
     assert(normalized.title === "Needs Approval");
@@ -35,41 +35,42 @@ module.exports = function runNotificationAndDocsTests(h) {
 
   test("notification spec infers titles and messages for InputRequest", () => {
     const normalized = createNotificationSpec({
-      sourceId: "codex",
+      agentId: "codex",
       entryPointId: "rollout-watch",
       eventName: "InputRequest",
     });
 
-    assert(normalized.source === "codex");
+    assert(normalized.agentId === "codex");
+    assert(!("source" in normalized));
     assert(normalized.eventName === "InputRequest");
     assert(normalized.title === "Input Needed");
     assert(normalized.message === "Waiting for your input");
   });
 
-  test("notification spec does not infer source hierarchy from a display string", () => {
+  test("notification spec does not infer agent hierarchy from a display string", () => {
     const normalized = createNotificationSpec({
       source: "watch-rollout",
       eventName: "InputRequest",
     });
 
-    assert(normalized.sourceId === "unknown");
+    assert(normalized.agentId === "unknown");
     assert(normalized.entryPointId === "");
-    assert(normalized.source === "watch-rollout");
+    assert(!("source" in normalized));
   });
 
-  test("notification spec does not rewrite historical source ids", () => {
+  test("notification spec canonicalizes codex-specific agent ids down to the agent source", () => {
     const normalized = createNotificationSpec({
-      sourceId: "codex-legacy-notify",
+      agentId: "codex-legacy-notify",
       entryPointId: "completion-fallback",
       eventName: "Stop",
     });
 
-    assert(normalized.sourceId === "codex-legacy-notify");
+    assert(normalized.agentId === "codex");
     assert(normalized.entryPointId === "completion-fallback");
-    assert(normalized.source === "codex-legacy-notify");
+    assert(!("source" in normalized));
   });
 
-  test("notification source normalizer canonicalizes source-prefixed stop titles", () => {
+  test("notification agent normalizer canonicalizes agent-prefixed stop titles", () => {
     const normalized = normalizeIncomingNotification({
       argv: [],
       stdinData: JSON.stringify({
@@ -83,7 +84,7 @@ module.exports = function runNotificationAndDocsTests(h) {
     assert(normalized.title === "Done");
   });
 
-  test("notification source normalizer recognizes Codex legacy notify argv payloads", () => {
+  test("notification agent normalizer recognizes Codex legacy notify argv payloads", () => {
     const normalized = normalizeIncomingNotification({
       argv: [
         "--shell-pid",
@@ -102,9 +103,9 @@ module.exports = function runNotificationAndDocsTests(h) {
       env: {},
     });
 
-    assert(normalized.sourceId === "codex");
+    assert(normalized.agentId === "codex");
     assert(normalized.entryPointId === "notify-mode");
-    assert(normalized.source === "codex");
+    assert(!("source" in normalized));
     assert(normalized.eventName === "Stop");
     assert(normalized.title === "Done");
     assert(normalized.message === "Task finished");
@@ -113,7 +114,65 @@ module.exports = function runNotificationAndDocsTests(h) {
     assert(normalized.projectDir === TEST_PROJECT_DIR);
   });
 
-  test("notification source normalizer respects explicit source title and message", () => {
+  test("notification agent normalizer recognizes Codex hook PermissionRequest payloads", () => {
+    const normalized = normalizeIncomingNotification({
+      argv: [],
+      stdinData: JSON.stringify({
+        hook_event_name: "PermissionRequest",
+        session_id: "codex-hooks-session-1",
+        turn_id: "codex-hooks-turn-1",
+        cwd: TEST_PROJECT_DIR,
+        transcript_path: "C:\\Users\\ericali\\.codex\\history\\session.jsonl",
+        model: "gpt-5.5",
+        tool_name: "Bash",
+        tool_input: {
+          command: "git status",
+        },
+      }),
+      env: {},
+    });
+
+    assert(normalized.agentId === "codex");
+    assert(normalized.entryPointId === "hooks-mode");
+    assert(!("source" in normalized));
+    assert(normalized.eventName === "PermissionRequest");
+    assert(normalized.sessionId === "codex-hooks-session-1");
+    assert(normalized.turnId === "codex-hooks-turn-1");
+    assert(normalized.projectDir === TEST_PROJECT_DIR);
+    assert(normalized.title === "Needs Approval");
+    assert(normalized.message === "Waiting for your approval");
+    assert(normalized.rawEventType === "PermissionRequest");
+  });
+
+  test("notification agent normalizer recognizes Codex hook Stop payloads", () => {
+    const normalized = normalizeIncomingNotification({
+      argv: [],
+      stdinData: JSON.stringify({
+        hook_event_name: "Stop",
+        session_id: "codex-hooks-session-2",
+        turn_id: "codex-hooks-turn-2",
+        cwd: TEST_PROJECT_DIR,
+        transcript_path: "C:\\Users\\ericali\\.codex\\history\\session.jsonl",
+        model: "gpt-5.5",
+        stop_hook_active: false,
+        last_assistant_message: "Done",
+      }),
+      env: {},
+    });
+
+    assert(normalized.agentId === "codex");
+    assert(normalized.entryPointId === "hooks-mode");
+    assert(!("source" in normalized));
+    assert(normalized.eventName === "Stop");
+    assert(normalized.sessionId === "codex-hooks-session-2");
+    assert(normalized.turnId === "codex-hooks-turn-2");
+    assert(normalized.projectDir === TEST_PROJECT_DIR);
+    assert(normalized.title === "Done");
+    assert(normalized.message === "Task finished");
+    assert(normalized.rawEventType === "Stop");
+  });
+
+  test("notification agent normalizer ignores explicit source while respecting title and message", () => {
     const normalized = normalizeIncomingNotification({
       argv: [],
       stdinData: JSON.stringify({
@@ -124,7 +183,8 @@ module.exports = function runNotificationAndDocsTests(h) {
       env: {},
     });
 
-    assert(normalized.source === "BuildBot");
+    assert(normalized.agentId === "unknown");
+    assert(!("source" in normalized));
     assert(normalized.title === "Queued");
     assert(normalized.message === "Waiting in CI");
   });
@@ -133,10 +193,10 @@ module.exports = function runNotificationAndDocsTests(h) {
     const readmeContent = read("README.md");
     assert(readmeContent.includes("codex-session-watch"));
     assert(readmeContent.includes("auto-start `codex-session-watch`"));
-    assert(readmeContent.includes("codex.notify-mode"));
-    assert(readmeContent.includes("codex.rollout-watch"));
-    assert(readmeContent.includes("codex.tui-watch"));
-    assert(readmeContent.includes("claude.notify-mode"));
+    assert(readmeContent.includes("`notify-mode`"));
+    assert(readmeContent.includes("`rollout-watch`"));
+    assert(readmeContent.includes("`tui-watch`"));
+    assert(readmeContent.includes("`claude`"));
     assert(readmeContent.includes("approval reminders"));
     assert(readmeContent.includes("input prompts"));
     assert(readmeContent.includes("If you only care about turn-complete notifications"));
@@ -146,6 +206,7 @@ module.exports = function runNotificationAndDocsTests(h) {
 
   test("README documents direct Codex notify support and limitation", () => {
     const readmeContent = read("README.md");
+    assert(readmeContent.includes("codex_hooks = true"));
     assert(readmeContent.includes('notify = ["ai-agent-notify.cmd"]'));
     assert(readmeContent.includes("`~/.codex/config.toml`:"));
     assert(readmeContent.includes("primary path for Codex turn-complete notifications"));
@@ -177,6 +238,19 @@ module.exports = function runNotificationAndDocsTests(h) {
     assert(readmeContent.includes("input prompts"));
   });
 
+  test("README documents optional Codex hooks parallel path with hooks.json only", () => {
+    const readmeContent = read("README.md");
+    assert(readmeContent.includes("hooks.json"));
+    assert(readmeContent.includes('"hooks": {'));
+    assert(readmeContent.includes("PermissionRequest"));
+    assert(readmeContent.includes("Stop"));
+    assert(readmeContent.includes("parallel validation"));
+    assert(readmeContent.includes("features.codex_hooks = true"));
+    assert(readmeContent.includes("Codex 当前会跳过带 `async: true` 的 hooks"));
+    assert(readmeContent.includes("InputRequest still stays on `codex-session-watch`"));
+    assert(!readmeContent.includes("[[hooks.PermissionRequest]]"));
+  });
+
   test("architecture documents task_complete receipts and delayed fallback", () => {
     const architectureContent = read("docs/architecture.md");
     assert(architectureContent.includes("task_complete"));
@@ -185,6 +259,33 @@ module.exports = function runNotificationAndDocsTests(h) {
     assert(architectureContent.includes("notify-first"));
     assert(architectureContent.includes("completion 的主路径不走 sidecar"));
     assert(!architectureContent.includes("completion 不走 sidecar。只有 approval 的检测"));
+  });
+
+  test("architecture documents hooks parallel reconciliation and no longer claims hooks are undocumented", () => {
+    const architectureContent = read("docs/architecture.md");
+    assert(architectureContent.includes("hooks.json"));
+    assert(architectureContent.includes("hooks-mode"));
+    assert(architectureContent.includes("并行对账"));
+    assert(architectureContent.includes("sessionId + turnId + eventName"));
+    assert(architectureContent.includes("InputRequest 仍由 watcher"));
+    assert(!architectureContent.includes("没有公开 lifecycle hook 文档"));
+    assert(!architectureContent.includes("under development / off by default"));
+  });
+
+  test("docs define agentId and entryPointId as the canonical normalized contract", () => {
+    const readmeContent = read("README.md");
+    const architectureContent = read("docs/architecture.md");
+    const windowsRuntimeContent = read("docs/windows-runtime.md");
+
+    assert(readmeContent.includes("`agentId` 只表示 agent 来源"));
+    assert(readmeContent.includes("`entryPointId`"));
+    assert(architectureContent.includes("## 归一化字段契约"));
+    assert(architectureContent.includes("`agentId` 只表示 agent 来源"));
+    assert(architectureContent.includes("`source` 已从规范字段删除"));
+    assert(windowsRuntimeContent.includes("### 归一化字段约定"));
+    assert(windowsRuntimeContent.includes("`agentId` 只表示 agent 来源"));
+    assert(windowsRuntimeContent.includes("`TOAST_NOTIFY_AGENT_ID` | agent 来源 id"));
+    assert(windowsRuntimeContent.includes("`TOAST_NOTIFY_ENTRY_POINT`"));
   });
 
   test("cli help documents codex-session-watch completion fallback wording", () => {
@@ -211,6 +312,9 @@ module.exports = function runNotificationAndDocsTests(h) {
     assert(docsIndexContent.includes("ai-agent-notify.cmd"));
     assert(!docsIndexContent.includes("`npx.cmd @erica-s/ai-agent-notify`"));
     assert(approvalContent.includes('notify = ["ai-agent-notify.cmd"]'));
+    assert(approvalContent.includes("codex_hooks = true"));
+    assert(approvalContent.includes('{ "hooks": { ... } }'));
+    assert(approvalContent.includes("Codex 当前会跳过带 `async: true` 的 hooks"));
     assert(approvalContent.includes("README"));
   });
 

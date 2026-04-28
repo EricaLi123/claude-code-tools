@@ -71,7 +71,7 @@ module.exports = function runCompletionFallbackTests(h) {
 
     try {
       completionReceipts.writeCodexCompletionReceiptForNotification({
-        sourceId: "codex",
+        agentId: "codex",
         entryPointId: "notify-mode",
         eventName: "Stop",
         sessionId,
@@ -116,7 +116,7 @@ module.exports = function runCompletionFallbackTests(h) {
 
     try {
       const nonStopResult = completionReceipts.writeCodexCompletionReceiptForNotification({
-        sourceId: "codex",
+        agentId: "codex",
         entryPointId: "notify-mode",
         eventName: "PermissionRequest",
         sessionId: nonStopSessionId,
@@ -124,7 +124,7 @@ module.exports = function runCompletionFallbackTests(h) {
       });
       const missingTurnResult =
         completionReceipts.writeCodexCompletionReceiptForNotification({
-          sourceId: "codex",
+          agentId: "codex",
           entryPointId: "notify-mode",
           eventName: "Stop",
           sessionId: `completion-missing-turn-${process.pid}-${Date.now()}`,
@@ -181,10 +181,11 @@ module.exports = function runCompletionFallbackTests(h) {
     try {
       const wrote = completionReceipts.writeCodexCompletionReceiptForNotification(notification);
 
-      assert(notification.sourceId === "codex", "expected codex notification sourceId");
+      assert(notification.agentId === "codex", "expected codex notification agentId");
       assert(notification.entryPointId === "notify-mode", "expected codex notify entryPointId");
       assert(notification.turnId === turnId, "expected turn id");
       assert(notification.sessionId === "unknown", "turn-only payload should not synthesize sessionId");
+      assert(!("source" in notification), "normalized notifications should not expose source");
       assert(!wrote, "turn-only payload should not write a completion receipt");
       assert(
         !completionReceipts.hasCodexCompletionReceipt({
@@ -218,9 +219,8 @@ module.exports = function runCompletionFallbackTests(h) {
       cli.runDefaultNotifyMode([], {
         stdinData: "",
         normalizeIncomingNotificationImpl: () => ({
-          sourceId: "codex",
+          agentId: "codex",
           entryPointId: "notify-mode",
-          source: "codex.notify-mode",
           transport: "argv[0]",
           sessionId,
           turnId,
@@ -279,9 +279,8 @@ module.exports = function runCompletionFallbackTests(h) {
       cli.runDefaultNotifyMode([], {
         stdinData: "",
         normalizeIncomingNotificationImpl: () => ({
-          sourceId: "codex",
+          agentId: "codex",
           entryPointId: "notify-mode",
-          source: "codex.notify-mode",
           transport: "argv[0]",
           sessionId: `gha-session-${process.pid}-${Date.now()}`,
           turnId: `gha-turn-${process.hrtime.bigint().toString()}`,
@@ -338,7 +337,7 @@ module.exports = function runCompletionFallbackTests(h) {
       log: (line) => logs.push(line),
     };
     const event = {
-      sourceId: "codex",
+      agentId: "codex",
       entryPointId: "rollout-watch",
       sessionId: "pending-session",
       turnId: "pending-turn",
@@ -448,7 +447,7 @@ module.exports = function runCompletionFallbackTests(h) {
       log: (line) => logs.push(line),
     };
     const event = {
-      sourceId: "codex",
+      agentId: "codex",
       entryPointId: "rollout-watch",
       sessionId: "receipt-session",
       turnId: "receipt-turn",
@@ -508,7 +507,7 @@ module.exports = function runCompletionFallbackTests(h) {
       pendingCompletionNotifications,
       emittedEventKeys,
       event: {
-        sourceId: "codex",
+        agentId: "codex",
         entryPointId: "rollout-watch",
         sessionId: "queued-session",
         turnId: "queued-turn",
@@ -677,18 +676,21 @@ module.exports = function runCompletionFallbackTests(h) {
     const emitted = [];
     const fakeChild = { on: () => {} };
     const runtimeObject = { log: () => {} };
+    const sessionId = `session-stop-${process.pid}-${Date.now()}`;
+    const turnId = `turn-stop-${process.hrtime.bigint().toString()}`;
     const didEmit = completionNotify.emitPreparedCodexCompletionNotification({
       prepared: {
         event: {
-          source: "codex.rollout-watch",
+          agentId: "codex",
+          entryPointId: "rollout-watch",
           eventName: "Stop",
           title: "Done",
           message: "Task finished",
           eventType: "task_complete",
-          sessionId: "session-stop",
-          turnId: "turn-stop",
+          sessionId,
+          turnId,
           projectDir: TEST_PACKAGE_DIR,
-          dedupeKey: "session-stop|turn-stop|Stop",
+          dedupeKey: `${sessionId}|${turnId}|Stop`,
         },
         notificationTerminal: { hwnd: null, shellPid: null, isWindowsTerminal: false },
       },
@@ -713,18 +715,21 @@ module.exports = function runCompletionFallbackTests(h) {
     const emitted = [];
     const fakeChild = { on: () => {} };
     const refreshedTerminal = { hwnd: 777, shellPid: 999, isWindowsTerminal: false };
+    const sessionId = `session-refresh-${process.pid}-${Date.now()}`;
+    const turnId = `turn-refresh-${process.hrtime.bigint().toString()}`;
 
     const prepared = completionNotify.prepareCodexCompletionNotification({
       event: {
-        source: "codex.rollout-watch",
+        agentId: "codex",
+        entryPointId: "rollout-watch",
         eventName: "Stop",
         title: "Done",
         message: "Task finished",
         eventType: "task_complete",
-        sessionId: "session-refresh",
-        turnId: "turn-refresh",
+        sessionId,
+        turnId,
         projectDir: TEST_PACKAGE_DIR,
-        dedupeKey: "session-refresh|turn-refresh|Stop",
+        dedupeKey: `${sessionId}|${turnId}|Stop`,
       },
       runtime: runtimeObject,
       terminal: { hwnd: null, shellPid: null, isWindowsTerminal: false },

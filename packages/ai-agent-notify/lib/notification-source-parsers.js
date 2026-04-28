@@ -21,6 +21,7 @@ function normalizeIncomingNotification({ argv = [], stdinData = "", env = {} } =
 
   for (const candidate of candidates) {
     const normalized =
+      normalizeCodexHookPayload(candidate) ||
       normalizeClaudeHookPayload(candidate) ||
       normalizeCodexLegacyNotifyPayload(candidate) ||
       normalizeGenericJsonPayload(candidate);
@@ -32,7 +33,7 @@ function normalizeIncomingNotification({ argv = [], stdinData = "", env = {} } =
 
   return applyExplicitDisplayOverrides(
     createNotificationSpec({
-      sourceId: "unknown",
+      agentId: "unknown",
       entryPointId: "notify-mode",
       transport: candidates.length > 0 ? candidates[0].transport : "none",
       sessionId: "unknown",
@@ -70,20 +71,56 @@ function normalizeClaudeHookPayload(candidate) {
     return null;
   }
 
-  if (!hasAnyKey(payload, ["hook_event_name", "session_id", "title", "message", "source"])) {
+  if (!hasAnyKey(payload, ["hook_event_name", "session_id"])) {
     return null;
   }
 
   return createNotificationSpec({
-    sourceId: "claude",
+    agentId: "claude",
     entryPointId: "notify-mode",
-    source: getStringField(payload, ["source"]),
     transport: candidate.transport,
     sessionId: getStringField(payload, ["session_id"]) || "unknown",
     eventName: getStringField(payload, ["hook_event_name"]),
     title: getStringField(payload, ["title"]),
     message: getStringField(payload, ["message"]),
     rawEventType: getStringField(payload, ["hook_event_name"]),
+    payloadKeys: Object.keys(payload).sort(),
+    debugSummary: buildCandidateSummary(candidate),
+  });
+}
+
+function normalizeCodexHookPayload(candidate) {
+  const payload = candidate.parsed;
+  if (!isPlainObject(payload)) {
+    return null;
+  }
+
+  const eventName = getStringField(payload, ["hook_event_name"]);
+  const sessionId = getStringField(payload, ["session_id"]);
+  const turnId = getStringField(payload, ["turn_id"]);
+  if (!sessionId || !turnId || (eventName !== "PermissionRequest" && eventName !== "Stop")) {
+    return null;
+  }
+
+  const hasCodexHookShape =
+    hasAnyKey(payload, ["tool_name", "tool_input", "stop_hook_active", "last_assistant_message"]) ||
+    hasAnyKey(payload, ["transcript_path", "model", "cwd"]);
+  if (!hasCodexHookShape) {
+    return null;
+  }
+
+  return createNotificationSpec({
+    agentId: "codex",
+    entryPointId: "hooks-mode",
+    transport: candidate.transport,
+    sessionId,
+    turnId,
+    eventName,
+    title: getStringField(payload, ["title"]),
+    message: getStringField(payload, ["message"]),
+    projectDir: getStringField(payload, ["cwd"]),
+    rawEventType: eventName,
+    client: "codex-hooks",
     payloadKeys: Object.keys(payload).sort(),
     debugSummary: buildCandidateSummary(candidate),
   });
@@ -122,9 +159,8 @@ function normalizeCodexLegacyNotifyPayload(candidate) {
   }
 
   return createNotificationSpec({
-    sourceId: "codex",
+    agentId: "codex",
     entryPointId: "notify-mode",
-    source: getStringField(payload, ["source"]),
     transport: candidate.transport,
     sessionId,
     turnId,
@@ -146,9 +182,8 @@ function normalizeGenericJsonPayload(candidate) {
   }
 
   return createNotificationSpec({
-    sourceId: inferSourceId(payload),
+    agentId: inferAgentId(payload),
     entryPointId: "notify-mode",
-    source: getStringField(payload, ["source"]),
     transport: candidate.transport,
     sessionId:
       getStringField(payload, ["session_id", "thread-id", "thread_id", "threadId"]) || "unknown",
@@ -163,7 +198,7 @@ function normalizeGenericJsonPayload(candidate) {
   });
 }
 
-function inferSourceId(payload) {
+function inferAgentId(payload) {
   const client = getStringField(payload, ["client"]);
   if (client.startsWith("codex")) {
     return "codex";

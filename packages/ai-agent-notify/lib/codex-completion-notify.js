@@ -2,6 +2,7 @@ const {
   resolveApprovalTerminalContext,
   shouldEmitEventKey,
 } = require("./codex-approval-notify");
+const { shouldEmitCodexEventNotification } = require("./codex-event-reconciliation");
 const { emitNotification } = require("./notify-runtime");
 
 function prepareCodexCompletionNotification({
@@ -34,9 +35,14 @@ function emitPreparedCodexCompletionNotification({
   sessionsDir,
   resolveTerminalContext = resolveApprovalTerminalContext,
   emitNotificationImpl = emitNotification,
+  shouldEmitCodexEventNotificationImpl = shouldEmitCodexEventNotification,
 }) {
   const event = prepared && prepared.event;
   if (!event || !shouldEmitEventKey(emittedEventKeys, event.dedupeKey)) {
+    return false;
+  }
+
+  if (!shouldEmitCodexEventNotificationImpl(event, { runtime })) {
     return false;
   }
 
@@ -56,7 +62,7 @@ function emitPreparedCodexCompletionNotification({
   );
 
   const child = emitNotificationImpl({
-    source: event.source,
+    agentId: event.agentId,
     entryPointId: event.entryPointId,
     eventName: event.eventName,
     title: event.title,

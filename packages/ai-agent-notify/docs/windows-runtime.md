@@ -28,6 +28,15 @@
 
 ## Runtime 约定
 
+### 归一化字段约定
+
+对 runtime 上游传下来的归一化事件，当前文档约定如下：
+
+- `agentId` 只表示 agent 来源，只应取 `claude`、`codex`、`unknown`。
+- `entryPointId` 只表示本包内部入口，例如 `notify-mode`、`hooks-mode`、`rollout-watch`、`tui-watch`。
+- 面向用户的显示标签只由 `agentId + entryPointId` 组合出来，但这不是新的规范字段。
+- `source` 已从规范字段删除；Windows runtime 只透传 `TOAST_NOTIFY_AGENT_ID` 和 `TOAST_NOTIFY_ENTRY_POINT`。
+
 ### Payload 约束
 
 Codex legacy notify 会把 payload 作为最后一个 JSON argv 追加给命令。当前 runtime 约定是：
@@ -150,7 +159,8 @@ Hook 触发 → cli.js
 | `TOAST_NOTIFY_EVENT` | hook 事件名（Stop / PermissionRequest） |
 | `TOAST_NOTIFY_HWND` | 终端窗口句柄（找不到时不设置） |
 | `TOAST_NOTIFY_IS_DEV` | 是否为开发版本（`1` = dev，`0` = 生产） |
-| `TOAST_NOTIFY_SOURCE` | 可显示的来源标签 |
+| `TOAST_NOTIFY_AGENT_ID` | agent 来源 id |
+| `TOAST_NOTIFY_ENTRY_POINT` | 代码入口 id，例如 `notify-mode` / `hooks-mode` |
 | `TOAST_NOTIFY_TITLE` | 通知标题主体 |
 | `TOAST_NOTIFY_MESSAGE` | 通知正文 |
 | `TOAST_NOTIFY_SHELL_PID` | 显式指定当前交互 shell 的 PID |

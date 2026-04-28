@@ -148,8 +148,7 @@ function writeCodexCompletionReceiptForNotification(
 ) {
   if (
     !notification ||
-    notification.sourceId !== "codex" ||
-    notification.entryPointId !== "notify-mode" ||
+    !isCodexCompletionNotification(notification) ||
     notification.eventName !== "Stop"
   ) {
     return false;
@@ -178,6 +177,17 @@ function deleteReceiptFile(filePath) {
   try {
     fs.unlinkSync(filePath);
   } catch {}
+}
+
+function isCodexCompletionNotification(notification) {
+  if (!notification) {
+    return false;
+  }
+
+  return (
+    notification.agentId === "codex" &&
+    (notification.entryPointId === "notify-mode" || notification.entryPointId === "hooks-mode")
+  );
 }
 
 module.exports = {

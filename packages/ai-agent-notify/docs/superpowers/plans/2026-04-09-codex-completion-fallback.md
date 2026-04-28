@@ -81,7 +81,7 @@ module.exports = function runCompletionFallbackTests(h) {
     try {
       const wrote = completionReceipts.writeCodexCompletionReceiptForNotification({
         notification: {
-          sourceId: "codex-legacy-notify",
+          agentId: "codex",
           eventName: "Stop",
           sessionId: "session-stop",
           turnId: "turn-stop",
@@ -112,7 +112,7 @@ module.exports = function runCompletionFallbackTests(h) {
       assert(
         completionReceipts.writeCodexCompletionReceiptForNotification({
           notification: {
-            sourceId: "codex-legacy-notify",
+            agentId: "codex",
             eventName: "PermissionRequest",
             sessionId: "session-ignore",
             turnId: "turn-ignore",
@@ -125,7 +125,7 @@ module.exports = function runCompletionFallbackTests(h) {
       assert(
         completionReceipts.writeCodexCompletionReceiptForNotification({
           notification: {
-            sourceId: "codex-legacy-notify",
+            agentId: "codex",
             eventName: "Stop",
             sessionId: "session-ignore",
             turnId: "",
@@ -292,7 +292,7 @@ function writeCodexCompletionReceiptForNotification({
 }) {
   if (
     !notification ||
-    notification.sourceId !== "codex-legacy-notify" ||
+    notification.agentId !== "codex" ||
     notification.eventName !== "Stop"
   ) {
     return false;
@@ -342,12 +342,12 @@ async function runDefaultNotifyMode(argv) {
   const terminal = detectTerminalContext(argv, runtime.log);
 
   runtime.log(
-    `started mode=notify source=${notification.sourceId} transport=${notification.transport || "none"} session=${sessionId} packageRoot=${runtime.buildInfo.packageRoot}`
+    `started mode=notify agent=${notification.agentId} transport=${notification.transport || "none"} session=${sessionId} packageRoot=${runtime.buildInfo.packageRoot}`
   );
   runtime.log(notification.debugSummary);
 
   const child = emitNotification({
-    source: notification.source,
+    agentId: notification.agentId,
     eventName: notification.eventName,
     title: notification.title,
     message: notification.message,
@@ -688,7 +688,7 @@ function createSessionCompletionEvent({ payload, projectDir, sessionId, turnId }
 
   return {
     ...createNotificationSpec({
-      sourceId: "codex-session-watch",
+      agentId: "codex",
       sessionId,
       turnId,
       eventName: "Stop",
@@ -865,7 +865,7 @@ function emitPreparedCodexCompletionNotification({
   );
 
   const child = emitNotificationImpl({
-    source: event.source,
+    agentId: event.agentId,
     eventName: event.eventName,
     title: event.title,
     message: event.message,

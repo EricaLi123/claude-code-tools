@@ -24,6 +24,7 @@ module.exports = function runStructureAndRuntimeTests(h) {
     "lib/codex-completion-pending.js",
     "lib/codex-completion-notify.js",
     "lib/codex-completion-receipts.js",
+    "lib/codex-event-reconciliation.js",
     "lib/codex-mcp-sidecar-mode.js",
     "lib/codex-mcp-server.js",
     "lib/codex-sidecar-matcher.js",
@@ -105,7 +106,9 @@ module.exports = function runStructureAndRuntimeTests(h) {
   const approvalPendingContent = read("lib/codex-approval-pending.js");
   const approvalRulesContent = read("lib/codex-approval-rules.js");
   const approvalSessionGrantsContent = read("lib/codex-approval-session-grants.js");
+  const completionNotifyContent = read("lib/codex-completion-notify.js");
   const mcpSidecarModeContent = read("lib/codex-mcp-sidecar-mode.js");
+  const eventReconciliationContent = read("lib/codex-event-reconciliation.js");
   const mcpServerContent = read("lib/codex-mcp-server.js");
   const notifyTerminalContextContent = read("lib/notify-terminal-context.js");
   const notifyRuntimeContent = read("lib/notify-runtime.js");
@@ -341,12 +344,13 @@ module.exports = function runStructureAndRuntimeTests(h) {
     assert(shellCommandAnalysisContent.includes("function isLikelyReadOnlyShellCommand("));
   });
 
-  test("notification source normalization is split into parser and display modules", () => {
+  test("notification agent normalization is split into parser and display modules", () => {
     assert(notificationSourceParsersContent.includes('require("./notification-source-display")'));
     assert(notificationSourceParsersContent.includes("function normalizeIncomingNotification("));
+    assert(notificationSourceParsersContent.includes("function normalizeCodexHookPayload("));
     assert(notificationSourceParsersContent.includes("function getIncomingPayloadCandidates("));
     assert(notificationSourceDisplayContent.includes("function createNotificationSpec("));
-    assert(notificationSourceDisplayContent.includes("function getSourceFamily("));
+    assert(notificationSourceDisplayContent.includes("function canonicalizeAgentId("));
   });
 
   test("mock-codex-permission fixture forces local permission requests for Codex", () => {
@@ -355,6 +359,15 @@ module.exports = function runStructureAndRuntimeTests(h) {
     assert(mockCodexPermissionReadmeContent.includes("PermissionRequest"));
     assert(mockCodexPermissionReadmeContent.includes(".codex/config.toml"));
     assert(mockCodexPermissionReadmeContent.includes("trust"));
+  });
+
+  test("parallel hooks reconciliation lives in its own module", () => {
+    assert(eventReconciliationContent.includes("function buildCodexEventReconciliationKey("));
+    assert(eventReconciliationContent.includes("function shouldEmitCodexEventNotification("));
+    assert(eventReconciliationContent.includes("parallel reconciliation"));
+    assert(approvalNotifyContent.includes('require("./codex-event-reconciliation")'));
+    assert(completionNotifyContent.includes('require("./codex-event-reconciliation")'));
+    assert(cliContent.includes('require("../lib/codex-event-reconciliation")'));
   });
 
   test("windows path normalizer keeps blank values blank", () => {
@@ -369,21 +382,87 @@ module.exports = function runStructureAndRuntimeTests(h) {
     assert(notifyContent.includes("Needs Approval"));
     assert(!notifyContent.includes("Needs Permission"));
     assert(notifyContent.includes("TOAST_NOTIFY_ENTRY_POINT"));
-    assert(notifyContent.includes("[$source] $baseTitle"));
+    assert(notifyContent.includes("TOAST_NOTIFY_AGENT_ID"));
+    assert(notifyContent.includes("[$agentId] $baseTitle"));
   });
 
   test("notify-runtime.js passes neutral notify env vars to PowerShell", () => {
     assert(notifyRuntimeContent.includes("TOAST_NOTIFY_EVENT"));
     assert(notifyRuntimeContent.includes("TOAST_NOTIFY_ENTRY_POINT"));
-    assert(notifyRuntimeContent.includes("TOAST_NOTIFY_SOURCE"));
+    assert(notifyRuntimeContent.includes("TOAST_NOTIFY_AGENT_ID"));
     assert(notifyRuntimeContent.includes("TOAST_NOTIFY_TITLE"));
     assert(notifyRuntimeContent.includes("TOAST_NOTIFY_MESSAGE"));
     assert(notifyRuntimeContent.includes("TOAST_NOTIFY_LOG_FILE"));
     assert(notifyRuntimeContent.includes("TOAST_NOTIFY_LOG_ROOT"));
     assert(notifyRuntimeContent.includes("TOAST_NOTIFY_LOG_STEM"));
+    assert(!notifyRuntimeContent.includes("TOAST_NOTIFY_SOURCE"));
     assert(!notifyRuntimeContent.includes("TOAST_NOTIFY_PROJECT_DIR"));
     assert(!notifyRuntimeContent.includes("CLAUDE_NOTIFY_PROJECT_DIR"));
     assert(!notifyRuntimeContent.includes("CLAUDE_PROJECT_DIR"));
+  });
+
+  test("notify-runtime keeps hook-facing stdout clean", () => {
+    const childProcess = require("child_process");
+    const notifyRuntimePath = path.join(ROOT, "lib", "notify-runtime.js");
+    const originalSpawn = childProcess.spawn;
+    const originalStdoutWrite = process.stdout.write;
+    const originalStderrWrite = process.stderr.write;
+    const stdoutWrites = [];
+    const stderrWrites = [];
+    let spawnCall = null;
+
+    delete require.cache[require.resolve(notifyRuntimePath)];
+    childProcess.spawn = (command, args, options) => {
+      spawnCall = { command, args, options };
+      return { on: () => {} };
+    };
+    process.stdout.write = (chunk) => {
+      stdoutWrites.push(String(chunk));
+      return true;
+    };
+    process.stderr.write = (chunk) => {
+      stderrWrites.push(String(chunk));
+      return true;
+    };
+
+    try {
+      const freshNotifyRuntime = require(notifyRuntimePath);
+      freshNotifyRuntime.emitNotification({
+        agentId: "codex",
+        entryPointId: "hooks-mode",
+        eventName: "Stop",
+        title: "Done",
+        message: "Task finished",
+        rawEventType: "Stop",
+        runtime: {
+          isDev: true,
+          logFile: path.join(notifyRuntime.LOG_DIR, `stdout-clean-${Date.now()}.log`),
+          logStem: `stdout-clean-${Date.now()}`,
+          log: () => {},
+        },
+        terminal: {
+          hwnd: null,
+          shellPid: null,
+          isWindowsTerminal: true,
+        },
+      });
+    } finally {
+      process.stdout.write = originalStdoutWrite;
+      process.stderr.write = originalStderrWrite;
+      childProcess.spawn = originalSpawn;
+      delete require.cache[require.resolve(notifyRuntimePath)];
+    }
+
+    assert(stdoutWrites.length === 0, "hook path should not write anything to stdout");
+    assert(
+      stderrWrites.some((chunk) => chunk.includes("\x1b]4;264;rgb:33/cc/33")),
+      "expected WT color OSC on stderr"
+    );
+    assert(spawnCall, "expected notify PowerShell script to be spawned");
+    assert(
+      JSON.stringify(spawnCall.options.stdio) === JSON.stringify(["ignore", "ignore", "inherit"]),
+      "hook path should ignore child stdout and keep stderr inherited"
+    );
   });
 
   test("cli.js writes a shared bootstrap log before per-session routing", () => {

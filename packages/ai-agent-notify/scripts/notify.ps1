@@ -20,7 +20,7 @@ Write-Log "started"
 
 # cli.js passes the dev/prod marker through the environment.
 $isDev = $env:TOAST_NOTIFY_IS_DEV -ne "0"
-$source = if ($env:TOAST_NOTIFY_SOURCE) { $env:TOAST_NOTIFY_SOURCE } else { '' }
+$agentId = if ($env:TOAST_NOTIFY_AGENT_ID) { $env:TOAST_NOTIFY_AGENT_ID } else { '' }
 $entryPointId = if ($env:TOAST_NOTIFY_ENTRY_POINT) { $env:TOAST_NOTIFY_ENTRY_POINT } else { '' }
 
 # 1. Resolve title/message from the env vars prepared by cli.js.
@@ -62,13 +62,13 @@ if (-not $message) {
     }
 }
 
-if ($source) {
-    $Title = "[$source] $baseTitle"
+if ($agentId) {
+    $Title = "[$agentId] $baseTitle"
 } else {
     $Title = $baseTitle
 }
 $Message = $message
-Write-Log "source=$source event=$eventName title=$Title message=$Message"
+Write-Log "agentId=$agentId entryPointId=$entryPointId event=$eventName title=$Title message=$Message"
 
 # 2. Capture window metadata when available.
 $hwnd            = $null

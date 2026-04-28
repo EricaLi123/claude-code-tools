@@ -1,15 +1,13 @@
 "use strict";
 
 function createNotificationSpec(spec) {
-  const sourceId = canonicalizeSourceId(spec.sourceId || "unknown");
+  const agentId = canonicalizeAgentId(spec.agentId || "unknown");
   const entryPointId = canonicalizeEntryPointId(spec.entryPointId || "");
   const eventName = spec.eventName || "";
 
   return {
-    sourceId,
+    agentId,
     entryPointId,
-    sourceFamily: getSourceFamily(sourceId),
-    source: canonicalizeDisplaySource(spec.source) || inferDisplaySource(sourceId, entryPointId),
     transport: spec.transport || "",
     sessionId: spec.sessionId || "unknown",
     turnId: spec.turnId || "",
@@ -27,7 +25,6 @@ function createNotificationSpec(spec) {
 function applyExplicitDisplayOverrides(spec, overrides) {
   return {
     ...spec,
-    source: canonicalizeDisplaySource(overrides.source || spec.source),
     title: canonicalizeNotificationTitle(overrides.title || spec.title),
     message: canonicalizeNotificationMessage(overrides.message || spec.message),
   };
@@ -35,18 +32,9 @@ function applyExplicitDisplayOverrides(spec, overrides) {
 
 function getExplicitDisplayOverrides(env) {
   return {
-    source: getStringField(env, ["TOAST_NOTIFY_SOURCE"]),
     title: getStringField(env, ["TOAST_NOTIFY_TITLE"]),
     message: getStringField(env, ["TOAST_NOTIFY_MESSAGE"]),
   };
-}
-
-function inferDisplaySource(sourceId, entryPointId) {
-  if (!sourceId || sourceId === "unknown") {
-    return "";
-  }
-
-  return sourceId;
 }
 
 function inferNotificationTitle(eventName) {
@@ -75,26 +63,26 @@ function inferNotificationMessage(eventName) {
   }
 }
 
-function canonicalizeDisplaySource(source) {
-  const trimmed = typeof source === "string" ? source.trim() : "";
-  if (!trimmed) {
-    return "";
-  }
-
-  if (/^(unknown|notification)$/i.test(trimmed)) {
-    return "";
-  }
-
-  return trimmed;
-}
-
-function canonicalizeSourceId(sourceId) {
-  const trimmed = typeof sourceId === "string" ? sourceId.trim() : "";
+function canonicalizeAgentId(agentId) {
+  const trimmed = typeof agentId === "string" ? agentId.trim() : "";
   if (!trimmed || /^(unknown|notification)$/i.test(trimmed)) {
     return "unknown";
   }
 
-  return trimmed.toLowerCase();
+  const normalized = trimmed.toLowerCase();
+  if (normalized === "codex" || normalized.startsWith("codex-") || normalized.startsWith("codex.")) {
+    return "codex";
+  }
+
+  if (
+    normalized === "claude" ||
+    normalized.startsWith("claude-") ||
+    normalized.startsWith("claude.")
+  ) {
+    return "claude";
+  }
+
+  return "unknown";
 }
 
 function canonicalizeEntryPointId(entryPointId) {
@@ -126,18 +114,6 @@ function canonicalizeNotificationMessage(message) {
   return trimmed || "Notification";
 }
 
-function getSourceFamily(sourceId) {
-  if (sourceId === "codex") {
-    return "codex";
-  }
-
-  if (sourceId === "claude") {
-    return "claude";
-  }
-
-  return "generic";
-}
-
 function getStringField(payload, keys) {
   for (const key of keys) {
     const value = payload[key];
@@ -151,7 +127,7 @@ function getStringField(payload, keys) {
 
 module.exports = {
   applyExplicitDisplayOverrides,
+  canonicalizeAgentId,
   createNotificationSpec,
   getExplicitDisplayOverrides,
-  getSourceFamily,
 };

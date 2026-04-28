@@ -200,7 +200,7 @@ function collectFingerprintFiles(targetPath, files) {
 }
 
 function emitNotification({
-  source,
+  agentId,
   entryPointId,
   eventName,
   title,
@@ -219,8 +219,8 @@ function emitNotification({
     TOAST_NOTIFY_LOG_STEM: runtime.logStem,
   };
 
-  if (source) {
-    envVars.TOAST_NOTIFY_SOURCE = source;
+  if (agentId && agentId !== "unknown") {
+    envVars.TOAST_NOTIFY_AGENT_ID = agentId;
   }
 
   if (entryPointId) {
@@ -254,7 +254,7 @@ function emitNotification({
   return spawn(
     "powershell",
     ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", scriptPath],
-    { stdio: ["ignore", "inherit", "inherit"], env: envVars }
+    { stdio: ["ignore", "ignore", "inherit"], env: envVars }
   );
 }
 
@@ -277,9 +277,6 @@ function writeWindowsTerminalColor(eventName, terminal, log) {
   const oscSet = `\x1b]4;264;${tabColor}\x1b\\`;
 
   try {
-    if (process.stdout && !process.stdout.destroyed) {
-      process.stdout.write(oscSet);
-    }
     if (process.stderr && !process.stderr.destroyed) {
       process.stderr.write(oscSet);
     }

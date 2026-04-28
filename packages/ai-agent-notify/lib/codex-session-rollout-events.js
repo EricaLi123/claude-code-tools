@@ -98,7 +98,7 @@ function buildSessionFunctionCallEvent({ callId, payload, projectDir, sessionId,
     const descriptor = getCodexInputRequestDescriptor(args);
     return {
       ...createNotificationSpec({
-        sourceId: "codex",
+        agentId: "codex",
         entryPointId: "rollout-watch",
         sessionId,
         turnId,
@@ -127,7 +127,7 @@ function buildSessionFunctionCallEvent({ callId, payload, projectDir, sessionId,
   const approvalProjectDir = args.workdir || projectDir;
   return {
     ...createNotificationSpec({
-      sourceId: "codex",
+      agentId: "codex",
       entryPointId: "rollout-watch",
       sessionId,
       turnId,
@@ -160,7 +160,7 @@ function createSessionApprovalRequestEvent({
 }) {
   return {
     ...createNotificationSpec({
-      sourceId: "codex",
+      agentId: "codex",
       entryPointId: "rollout-watch",
       sessionId,
       turnId,
@@ -202,7 +202,7 @@ function createSessionCompletionEvent({
 
   return {
     ...createNotificationSpec({
-      sourceId: "codex",
+      agentId: "codex",
       entryPointId: "rollout-watch",
       sessionId,
       turnId,
