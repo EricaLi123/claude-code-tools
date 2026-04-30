@@ -27,6 +27,7 @@
 - 默认入口 `ai-agent-notify` 统一收口 Claude hook stdin、Codex legacy notify argv，以及 Codex 官方 hooks。
 - Codex `notify = [...]` 继续作为 `Stop` 的主路径。
 - Codex 官方 hooks 负责 `PermissionRequest` 和 `Stop`，统一归一化成 `entryPointId = hooks-mode`。
+- direct notify 不再拆父子程序；是否打断 Codex UI 等待，交给 `hooks.json` 的 `timeout` 控制。
 - watcher 只处理 `InputRequest`。
 - `codex-session-watch` 同时读取 rollout JSONL 和 `codex-tui.log`，用双来源补足 `InputRequest`。
 - `codex-mcp-sidecar` 负责记录启动期 terminal observation，并兜底确保 watcher 在跑。
@@ -56,15 +57,16 @@ Stop:
     └─ ai-agent-notify
          ├─ normalizeIncomingNotification()
          ├─ 归一化为 agentId + entryPointId
-         ├─ 直接走共享 notify runtime
-         └─ 发 toast / flash / open / tab hint
+         ├─ 采 terminal context
+         └─ 直接做 notify.ps1 dispatch 与 watcher 启动
 
 PermissionRequest:
   Claude PermissionRequest / Codex hooks PermissionRequest
     └─ ai-agent-notify
          ├─ normalizeIncomingNotification()
          ├─ 归一化为 agentId + entryPointId=hooks-mode
-         └─ 直接走共享 notify runtime
+         ├─ 采 terminal context
+         └─ 直接做 notify.ps1 dispatch 与 watcher 启动
 
 InputRequest:
   Codex session start
@@ -91,6 +93,10 @@ Claude Code 的 hook 习惯是把 JSON 通过 stdin 传进来；Codex 旧版 `no
 ### 为什么 `InputRequest` 还保留 watcher
 
 当前官方 Codex hooks 只接 `PermissionRequest` 和 `Stop`。`InputRequest` 仍需要依赖本地 rollout JSONL 和 `codex-tui.log`。因此 watcher 只保留这一条职责，不再承担 approval 或 completion 的补救逻辑。
+
+### 为什么 direct notify 现在保持单进程
+
+因为用户现在选择把“UI 最多等多久”完全交给 Codex `hooks.json` 的 `timeout`。这样 CLI 内部可以保持单进程，不再维护额外进程、payload 文件和额外入口；terminal 探测、即时 WT tab 提示、`notify.ps1` 与 watcher 启动都留在同一个进程里完成。
 
 ### 为什么 sidecar 还存在
 

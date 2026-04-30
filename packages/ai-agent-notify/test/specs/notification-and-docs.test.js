@@ -237,8 +237,11 @@ module.exports = function runNotificationAndDocsTests(h) {
     assert(readmeContent.includes("Stop"));
     assert(readmeContent.includes("InputRequest"));
     assert(readmeContent.includes("hooks.json"));
+    assert(readmeContent.includes('"timeout": 2'));
     assert(readmeContent.includes("watcher 只处理 `InputRequest`"));
     assert(readmeContent.includes("Codex 当前会跳过带 `async: true` 的 hooks"));
+    assert(readmeContent.includes("`timeout`，当前建议值是 `2` 秒"));
+    assert(!readmeContent.includes("后台 worker"));
     assert(!readmeContent.includes("watcher-side completion fallback"));
     assert(!readmeContent.includes("InputRequest still stays on `codex-session-watch`"));
   });
@@ -252,6 +255,8 @@ module.exports = function runNotificationAndDocsTests(h) {
     assert(architectureContent.includes("rollout JSONL"));
     assert(architectureContent.includes("codex-tui.log"));
     assert(architectureContent.includes("watcher 只处理 `InputRequest`"));
+    assert(architectureContent.includes("`hooks.json` 的 `timeout`"));
+    assert(!architectureContent.includes("detached worker"));
     assert(!architectureContent.includes("task_complete"));
     assert(!architectureContent.includes("completion receipt"));
     assert(!architectureContent.includes("delayed fallback"));
@@ -301,10 +306,13 @@ module.exports = function runNotificationAndDocsTests(h) {
     assert(approvalContent.includes('notify = ["ai-agent-notify.cmd"]'));
     assert(approvalContent.includes("codex_hooks = true"));
     assert(approvalContent.includes('"hooks": {'));
+    assert(approvalContent.includes('"timeout": 2'));
     assert(approvalContent.includes("PermissionRequest"));
     assert(approvalContent.includes("Stop"));
     assert(approvalContent.includes("InputRequest"));
     assert(approvalContent.includes("Codex 当前会跳过带 `async: true` 的 hooks"));
+    assert(approvalContent.includes("当前方案不再拆父子程序"));
+    assert(!approvalContent.includes("detached worker"));
     assert(!approvalContent.includes("parallel"));
   });
 
@@ -356,6 +364,7 @@ module.exports = function runNotificationAndDocsTests(h) {
 
   test("README and docs only use valid local markdown links", () => {
     [
+      "AGENTS.md",
       "README.md",
       "docs/README.md",
       "docs/principles.md",

@@ -67,14 +67,14 @@ Optional official Codex hooks:
     "PermissionRequest": [
       {
         "hooks": [
-          { "type": "command", "command": "ai-agent-notify.cmd" }
+          { "type": "command", "command": "ai-agent-notify.cmd", "timeout": 2 }
         ]
       }
     ],
     "Stop": [
       {
         "hooks": [
-          { "type": "command", "command": "ai-agent-notify.cmd" }
+          { "type": "command", "command": "ai-agent-notify.cmd", "timeout": 2 }
         ]
       }
     ]
@@ -88,6 +88,8 @@ Optional official Codex hooks:
 - Codex 官方 hooks 还需要 `config.toml` 里的 `features.codex_hooks = true`；
   只写 `hooks.json` 不会生效。
 - Codex 当前会跳过带 `async: true` 的 hooks；这里要写同步 command hook。
+- Codex command hook 是同步的；如果不想 UI 等完整个通知流程，直接在
+  `hooks.json` 里给 hook 配 `timeout`，当前建议值是 `2` 秒。
 - `codex-mcp-sidecar` will usually auto-start `codex-session-watch`.
 - 归一化事件字段里，`agentId` 只表示 agent 来源，例如 `claude`、`codex`、
   `unknown`；代码入口统一记录在 `entryPointId`，例如 `notify-mode`、

@@ -16,6 +16,7 @@ module.exports = function runStructureAndRuntimeTests(h) {
   section("File structure");
 
   [
+    "AGENTS.md",
     "bin/cli.js",
     "lib/codex-mcp-sidecar-mode.js",
     "lib/codex-mcp-server.js",
@@ -74,6 +75,7 @@ module.exports = function runStructureAndRuntimeTests(h) {
     "lib/codex-event-reconciliation.js",
     "lib/codex-session-events.js",
     "lib/codex-session-watch.js",
+    "lib/codex-hook-notify-mode.js",
     "lib/notification-sources.js",
     "lib/codex-sidecar-state.js",
     "lib/shell-command-analysis.js",
@@ -105,6 +107,7 @@ module.exports = function runStructureAndRuntimeTests(h) {
   section("Content checks");
 
   const cliContent = read("bin/cli.js");
+  const agentsContent = read("AGENTS.md");
   const mcpSidecarModeContent = read("lib/codex-mcp-sidecar-mode.js");
   const mcpServerContent = read("lib/codex-mcp-server.js");
   const notifyTerminalContextContent = read("lib/notify-terminal-context.js");
@@ -147,11 +150,32 @@ module.exports = function runStructureAndRuntimeTests(h) {
     assert(!cliContent.includes("function acquireSingleInstanceLock("));
   });
 
+  test("AGENTS.md preserves package-level Codex guidance for docs and routing invariants", () => {
+    assert(agentsContent.includes("docs/principles.md"));
+    assert(agentsContent.includes("docs/README.md"));
+    assert(agentsContent.includes("文档分工和阅读顺序看 `docs/README.md`"));
+    assert(agentsContent.includes("`notify` 负责 completion"));
+    assert(agentsContent.includes("`codex-session-watch` 只负责 `InputRequest`"));
+    assert(agentsContent.includes("direct notify 保持单进程"));
+    assert(agentsContent.includes("`hooks.json` 的 `timeout`"));
+    assert(agentsContent.includes("`agentId` 只允许 `claude`、`codex`、`unknown`"));
+    assert(agentsContent.includes("不要恢复 `source`"));
+    assert(agentsContent.includes("不建 worktree"));
+  });
+
+  test("direct notify stays single-process with no detached hook worker module", () => {
+    assert(!cliContent.includes("../lib/codex-hook-notify-mode"));
+    assert(!cliContent.includes("shouldOffloadNotificationDispatch"));
+    assert(!cliContent.includes("spawnHookNotifyWorkerImpl"));
+    assert(!notifyRuntimeContent.includes("skipImmediateTerminalHints"));
+  });
+
   test("notify-runtime.js resolves hwnd, shell pid, and spawns watcher through launcher", () => {
     assert(notifyRuntimeContent.includes('require("./notify-terminal-context")'));
     assert(!notifyRuntimeContent.includes("function detectTerminalContext("));
     assert(notifyRuntimeContent.includes("start-tab-color-watcher.ps1"));
     assert(notifyRuntimeContent.includes("-TargetPid"));
+    assert(notifyRuntimeContent.includes("windowsHide: true"));
     assert(notifyRuntimeContent.includes("launcher exited status="));
     assert(notifyRuntimeContent.includes("WatcherPidFile"));
     assert(notifyTerminalContextContent.includes("function detectTerminalContext("));
@@ -159,6 +183,8 @@ module.exports = function runStructureAndRuntimeTests(h) {
     assert(notifyTerminalContextContent.includes("--shell-pid"));
     assert(notifyTerminalContextContent.includes("find-hwnd.ps1"));
     assert(notifyTerminalContextContent.includes("get-shell-pid.ps1"));
+    assert(notifyTerminalContextContent.includes("windowsHide: true"));
+    assert(!notifyTerminalContextContent.includes("skipConsoleShellDetection"));
   });
 
   test("session watcher responsibilities are split across input-only modules", () => {

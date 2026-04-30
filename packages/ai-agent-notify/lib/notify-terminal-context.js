@@ -45,7 +45,7 @@ function detectShellPid(log) {
       "-StartPid",
       String(process.pid),
     ],
-    { encoding: "utf8" }
+    { encoding: "utf8", windowsHide: true }
   );
 
   writeChildStderr(result, log);
@@ -68,7 +68,7 @@ function findParentInfo(log) {
       String(process.pid),
       "-IncludeShellPid",
     ],
-    { encoding: "utf8" }
+    { encoding: "utf8", windowsHide: true }
   );
 
   writeChildStderr(result, log);

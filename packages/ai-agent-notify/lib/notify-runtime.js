@@ -254,7 +254,11 @@ function emitNotification({
   return spawn(
     "powershell",
     ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", scriptPath],
-    { stdio: ["ignore", "ignore", "inherit"], env: envVars }
+    {
+      stdio: ["ignore", "ignore", "inherit"],
+      env: envVars,
+      windowsHide: true,
+    }
   );
 }
 
@@ -321,6 +325,7 @@ function startTabColorWatcher({ eventName, runtime, terminal }) {
       ],
       {
         stdio: ["ignore", "ignore", "ignore"],
+        windowsHide: true,
         env: {
           ...process.env,
           TOAST_NOTIFY_LOG_FILE: runtime.logFile,
