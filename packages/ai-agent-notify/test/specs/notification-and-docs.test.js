@@ -31,7 +31,7 @@ module.exports = function runNotificationAndDocsTests(h) {
     assert(normalized.sessionId === "claude-session-1");
     assert(normalized.title === "Needs Approval");
     assert(normalized.message === "Waiting for your approval");
-    assert(normalized.projectDir === "");
+    assert(!("projectDir" in normalized));
   });
 
   test("notification spec infers titles and messages for InputRequest", () => {
@@ -112,7 +112,7 @@ module.exports = function runNotificationAndDocsTests(h) {
     assert(normalized.message === "Task finished");
     assert(normalized.sessionId === "thread-123");
     assert(normalized.turnId === "turn-123");
-    assert(normalized.projectDir === TEST_PROJECT_DIR);
+    assert(!("projectDir" in normalized));
   });
 
   test("notification agent normalizer recognizes Codex hook PermissionRequest payloads", () => {
@@ -139,7 +139,7 @@ module.exports = function runNotificationAndDocsTests(h) {
     assert(normalized.eventName === "PermissionRequest");
     assert(normalized.sessionId === "codex-hooks-session-1");
     assert(normalized.turnId === "codex-hooks-turn-1");
-    assert(normalized.projectDir === TEST_PROJECT_DIR);
+    assert(!("projectDir" in normalized));
     assert(normalized.title === "Needs Approval");
     assert(normalized.message === "Waiting for your approval");
     assert(normalized.rawEventType === "PermissionRequest");
@@ -167,7 +167,7 @@ module.exports = function runNotificationAndDocsTests(h) {
     assert(normalized.eventName === "Stop");
     assert(normalized.sessionId === "codex-hooks-session-2");
     assert(normalized.turnId === "codex-hooks-turn-2");
-    assert(normalized.projectDir === TEST_PROJECT_DIR);
+    assert(!("projectDir" in normalized));
     assert(normalized.title === "Done");
     assert(normalized.message === "Task finished");
     assert(normalized.rawEventType === "Stop");
@@ -188,11 +188,8 @@ module.exports = function runNotificationAndDocsTests(h) {
     });
 
     assert(payload);
-    assert(payload.agentId === "codex");
-    assert(payload.entryPointId === "session-start-hook");
     assert(payload.sessionId === "codex-hooks-session-start");
-    assert(payload.projectDir === TEST_PROJECT_DIR);
-    assert(payload.source === "startup");
+    assert(JSON.stringify(Object.keys(payload).sort()) === JSON.stringify(["sessionId"]));
   });
 
   test("notification agent normalizer ignores explicit source while respecting title and message", () => {

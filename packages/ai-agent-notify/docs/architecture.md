@@ -45,8 +45,8 @@
 | 通道 | 能稳定拿到 | 拿不到 / 不应假设能拿到 | 适合承担的职责 |
 | --- | --- | --- | --- |
 | Codex legacy `notify` | `agent-turn-complete` 对应的一次性 completion payload，以及它触发当场可直接探测到的终端上下文 | `PermissionRequest`、`InputRequest` | 正常 `Stop` 通知 |
-| Codex hooks `hooks.json` | 官方 `session_id` / `turn_id`、hook 事件名、当前 `cwd`、`SessionStart.source` | rollout / TUI 历史中的后续 `InputRequest` | `SessionStart` bootstrap，以及 `PermissionRequest` / `Stop` 官方通知 |
-| `codex-session-watch` | rollout JSONL、`codex-tui.log`、`sessionId`、`turnId`、`cwd` | 官方 hooks 直接提供的 terminal 上下文 | `InputRequest` 双来源检测与发送 |
+| Codex hooks `hooks.json` | 官方 `session_id` / `turn_id`、hook 事件名，以及 `SessionStart` matcher 可见字段 | rollout / TUI 历史中的后续 `InputRequest` | `SessionStart` bootstrap，以及 `PermissionRequest` / `Stop` 官方通知 |
+| `codex-session-watch` | rollout JSONL、`codex-tui.log`、`sessionId`、`turnId` | 官方 hooks 直接提供的 terminal 上下文 | `InputRequest` 双来源检测与发送 |
 
 ## 当前数据流
 
@@ -112,7 +112,7 @@ Claude Code 的 hook 习惯是把 JSON 通过 stdin 传进来；Codex 旧版 `no
 | 终端上下文探测 | [`../lib/notify-terminal-context.js`](../lib/notify-terminal-context.js) |
 | `SessionStart` hook bootstrap | [`../lib/codex-session-start-hook.js`](../lib/codex-session-start-hook.js)、[`../lib/codex-terminal-context-store.js`](../lib/codex-terminal-context-store.js) |
 | watcher 主循环 | [`../lib/codex-session-watch-runner.js`](../lib/codex-session-watch-runner.js) |
-| rollout 文件扫描与 metadata | [`../lib/codex-session-watch-files.js`](../lib/codex-session-watch-files.js) |
+| rollout 文件扫描 | [`../lib/codex-session-watch-files.js`](../lib/codex-session-watch-files.js) |
 | watcher 事件流处理 | [`../lib/codex-session-watch-streams.js`](../lib/codex-session-watch-streams.js)、[`../lib/codex-session-watch-handlers.js`](../lib/codex-session-watch-handlers.js) |
 | watcher 定位与通知发送 | [`../lib/codex-session-watch-notify.js`](../lib/codex-session-watch-notify.js) |
 

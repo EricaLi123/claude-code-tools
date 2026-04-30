@@ -55,7 +55,6 @@ async function runCodexSessionWatchMode(argv) {
 
   const terminal = createNeutralTerminalContext();
   const fileStates = new Map();
-  const sessionProjectDirs = new Map();
   const emittedEventKeys = new Map();
   let tuiLogState = null;
   let initialScan = true;
@@ -120,24 +119,19 @@ async function runCodexSessionWatchMode(argv) {
           fileStates.set(filePath, state);
 
           if (initialScan) {
-            bootstrapExistingSessionFileState(state, stat, runtime.log);
+            bootstrapExistingSessionFileState(state, stat);
           }
 
           runtime.log(
-            `tracking session file=${filePath} position=${state.position} sessionId=${state.sessionId || "unknown"} cwd=${state.cwd || ""}`
+            `tracking session file=${filePath} position=${state.position} sessionId=${state.sessionId || "unknown"}`
           );
         }
 
         consumeSessionFileUpdates(state, stat, {
           runtime,
-          sessionsDir,
           terminal,
           emittedEventKeys,
         });
-
-        if (state.sessionId && state.cwd) {
-          sessionProjectDirs.set(state.sessionId, state.cwd);
-        }
       });
 
       Array.from(fileStates.keys()).forEach((filePath) => {
@@ -149,10 +143,8 @@ async function runCodexSessionWatchMode(argv) {
       tuiLogState = syncCodexTuiLogState(tuiLogState, tuiLogPath, {
         initialScan,
         runtime,
-        sessionsDir,
         terminal,
         emittedEventKeys,
-        sessionProjectDirs,
       });
 
       pruneEmittedEventKeys(emittedEventKeys, 4096);

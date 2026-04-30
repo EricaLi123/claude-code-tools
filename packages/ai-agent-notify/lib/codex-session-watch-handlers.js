@@ -8,7 +8,6 @@ function handleSessionRecord(
   line,
   {
     runtime,
-    sessionsDir,
     terminal,
     emittedEventKeys,
   }
@@ -25,16 +24,10 @@ function handleSessionRecord(
     if (record.payload.id) {
       state.sessionId = record.payload.id;
     }
-    if (record.payload.cwd) {
-      state.cwd = record.payload.cwd;
-    }
     return;
   }
 
   if (record.type === "turn_context" && record.payload) {
-    if (record.payload.cwd) {
-      state.cwd = record.payload.cwd;
-    }
     if (record.payload.turn_id) {
       state.turnId = record.payload.turn_id;
     }
@@ -60,28 +53,22 @@ function handleSessionRecord(
     terminal,
     emittedEventKeys,
     origin: "session",
-    sessionsDir,
   });
 }
 
 function handleCodexTuiLogLine(
-  tuiState,
   line,
   {
     runtime,
-    sessionsDir,
     terminal,
     emittedEventKeys,
-    sessionProjectDirs,
   }
 ) {
   if (!line || !line.trim()) {
     return;
   }
 
-  const event = buildCodexTuiInputEvent(tuiState, line, {
-    sessionProjectDirs,
-  });
+  const event = buildCodexTuiInputEvent(line);
   if (!event) {
     return;
   }
@@ -92,7 +79,6 @@ function handleCodexTuiLogLine(
     terminal,
     emittedEventKeys,
     origin: "tui",
-    sessionsDir,
   });
 }
 

@@ -14,10 +14,7 @@ function createNotificationSpec(spec) {
     eventName,
     title: canonicalizeNotificationTitle(spec.title || inferNotificationTitle(eventName)),
     message: canonicalizeNotificationMessage(spec.message || inferNotificationMessage(eventName)),
-    projectDir: spec.projectDir || "",
     rawEventType: spec.rawEventType || "",
-    payloadKeys: Array.isArray(spec.payloadKeys) ? spec.payloadKeys : [],
-    client: spec.client || "",
     debugSummary: spec.debugSummary || "",
   };
 }

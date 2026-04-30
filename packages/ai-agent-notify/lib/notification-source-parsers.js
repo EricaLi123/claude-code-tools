@@ -37,7 +37,6 @@ function normalizeIncomingNotification({ argv = [], stdinData = "", env = {} } =
       entryPointId: "notify-mode",
       transport: candidates.length > 0 ? candidates[0].transport : "none",
       sessionId: "unknown",
-      payloadKeys: [],
       debugSummary:
         candidates.length > 0 ? buildCandidateSummary(candidates[0]) : "payload transport=none",
     }),
@@ -88,7 +87,6 @@ function normalizeClaudeHookPayload(candidate) {
     title: getStringField(payload, ["title"]),
     message: getStringField(payload, ["message"]),
     rawEventType: eventName,
-    payloadKeys: Object.keys(payload).sort(),
     debugSummary: buildCandidateSummary(candidate),
   });
 }
@@ -118,23 +116,8 @@ function parseCodexSessionStartPayload(candidate) {
     return null;
   }
 
-  const hasCodexHookShape = hasAnyKey(payload, ["transcript_path", "model", "cwd", "source"]);
-  if (!hasCodexHookShape) {
-    return null;
-  }
-
   return {
-    agentId: "codex",
-    entryPointId: "session-start-hook",
-    transport: candidate.transport,
     sessionId,
-    hookEventName: eventName,
-    projectDir: getStringField(payload, ["cwd"]),
-    transcriptPath: getStringField(payload, ["transcript_path"]),
-    model: getStringField(payload, ["model"]),
-    source: getStringField(payload, ["source"]),
-    payloadKeys: Object.keys(payload).sort(),
-    debugSummary: buildCandidateSummary(candidate),
   };
 }
 
@@ -167,10 +150,7 @@ function normalizeCodexHookPayload(candidate) {
     eventName,
     title: getStringField(payload, ["title"]),
     message: getStringField(payload, ["message"]),
-    projectDir: getStringField(payload, ["cwd"]),
     rawEventType: eventName,
-    client: "codex-hooks",
-    payloadKeys: Object.keys(payload).sort(),
     debugSummary: buildCandidateSummary(candidate),
   });
 }
@@ -185,7 +165,6 @@ function normalizeCodexLegacyNotifyPayload(candidate) {
   const sessionId = getStringField(payload, ["thread-id", "thread_id", "threadId"]) || "unknown";
   const turnId = getStringField(payload, ["turn-id", "turn_id", "turnId"]);
   const client = getStringField(payload, ["client"]);
-  const projectDir = getStringField(payload, ["cwd", "project-dir", "project_dir", "projectDir"]);
   const hasCodexShape =
     !!rawEventType &&
     (client.startsWith("codex") ||
@@ -216,10 +195,7 @@ function normalizeCodexLegacyNotifyPayload(candidate) {
     eventName: CODEX_EVENT_NAME_BY_TYPE[rawEventType] || "",
     title: getStringField(payload, ["title"]),
     message: getStringField(payload, ["message"]),
-    projectDir,
     rawEventType,
-    client,
-    payloadKeys: Object.keys(payload).sort(),
     debugSummary: buildCandidateSummary(candidate),
   });
 }
@@ -239,10 +215,7 @@ function normalizeGenericJsonPayload(candidate) {
     eventName: getStringField(payload, ["hook_event_name", "event", "type"]),
     title: getStringField(payload, ["title"]),
     message: getStringField(payload, ["message"]),
-    projectDir: getStringField(payload, ["cwd", "project-dir", "project_dir", "projectDir"]),
     rawEventType: getStringField(payload, ["type"]),
-    client: getStringField(payload, ["client"]),
-    payloadKeys: Object.keys(payload).sort(),
     debugSummary: buildCandidateSummary(candidate),
   });
 }

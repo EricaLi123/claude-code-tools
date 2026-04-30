@@ -197,7 +197,7 @@ module.exports = function runStructureAndRuntimeTests(h) {
     assert(!sessionWatchRunnerContent.includes("flushPendingCompletionNotifications"));
     assert(!sessionWatchRunnerContent.includes("hasCodexCompletionReceipt"));
     assert(sessionWatchFilesContent.includes("function listRolloutFiles("));
-    assert(sessionWatchFilesContent.includes("function readRolloutMetadata("));
+    assert(!sessionWatchFilesContent.includes("function readRolloutMetadata("));
     assert(!sessionWatchFilesContent.includes("approvalPolicy"));
     assert(!sessionWatchFilesContent.includes("sandboxPolicy"));
     assert(sessionWatchHandlersContent.includes('require("./codex-session-rollout-events")'));
@@ -209,17 +209,26 @@ module.exports = function runStructureAndRuntimeTests(h) {
     assert(sessionWatchStreamsContent.includes('require("./codex-session-watch-handlers")'));
     assert(!sessionWatchStreamsContent.includes("pendingApproval"));
     assert(!sessionWatchStreamsContent.includes("pendingCompletion"));
+    assert(!sessionWatchRunnerContent.includes("sessionProjectDirs"));
+    assert(!sessionWatchRunnerContent.includes("cwd="));
+    assert(!sessionWatchHandlersContent.includes("state.cwd"));
+    assert(!sessionWatchStreamsContent.includes("sessionProjectDirs"));
     assert(sessionRolloutEventsContent.includes("request_user_input"));
+    assert(!sessionRolloutEventsContent.includes("projectDir"));
     assert(!sessionRolloutEventsContent.includes("PermissionRequest"));
     assert(!sessionRolloutEventsContent.includes("task_complete"));
     assert(!sessionRolloutEventsContent.includes("require_escalated"));
     assert(sessionTuiEventsContent.includes("function buildCodexTuiInputEvent("));
+    assert(!sessionTuiEventsContent.includes("sessionProjectDirs"));
+    assert(!sessionTuiEventsContent.includes("projectDir"));
     assert(!sessionTuiEventsContent.includes("function buildCodexTuiApprovalEvent("));
     assert(!sessionTuiEventsContent.includes("parseCodexTuiApprovalConfirmation"));
     assert(sessionEventDescriptorsContent.includes("function buildSessionEventDedupeKey("));
     assert(!sessionEventDescriptorsContent.includes("function getCodexExecApprovalDescriptor("));
     assert(sessionWatchNotifyContent.includes("function emitCodexSessionWatchNotification("));
     assert(sessionWatchNotifyContent.includes('require("./codex-terminal-context-store")'));
+    assert(!sessionWatchNotifyContent.includes("sessionsDir"));
+    assert(!sessionWatchNotifyContent.includes("projectDir"));
     assert(!sessionWatchNotifyContent.includes("project-dir fallback"));
     assert(!sessionWatchNotifyContent.includes("reconcile"));
   });
@@ -231,6 +240,9 @@ module.exports = function runStructureAndRuntimeTests(h) {
     assert(sessionStartHookContent.includes("function runCodexSessionStartHook("));
     assert(sessionStartHookContent.includes("ensureCodexSessionWatchRunning"));
     assert(sessionStartHookContent.includes("writeTerminalContextRecord"));
+    assert(!sessionStartHookContent.includes("transcriptPath"));
+    assert(!sessionStartHookContent.includes("projectDir"));
+    assert(!sessionStartHookContent.includes("source="));
     assert(!sessionStartHookContent.includes("handleMcpServerMessage"));
   });
 
@@ -365,6 +377,10 @@ module.exports = function runStructureAndRuntimeTests(h) {
     assert(notificationSourceParsersContent.includes("function getIncomingPayloadCandidates("));
     assert(notificationSourceDisplayContent.includes("function createNotificationSpec("));
     assert(notificationSourceDisplayContent.includes("function canonicalizeAgentId("));
+    assert(!notificationSourceDisplayContent.includes("projectDir"));
+    assert(!notificationSourceDisplayContent.includes("payloadKeys"));
+    assert(!notificationSourceDisplayContent.includes("client:"));
+    assert(!notificationSourceParsersContent.includes("hookEventName"));
   });
 
   test("mock-codex-permission fixture forces local permission requests for Codex", () => {

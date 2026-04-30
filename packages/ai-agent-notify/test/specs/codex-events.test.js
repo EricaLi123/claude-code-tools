@@ -9,7 +9,6 @@ module.exports = function runCodexEventTests(h) {
         filePath:
           "C:\\Users\\ericali\\.codex\\sessions\\2026\\03\\20\\rollout-2026-03-20T12-14-50-session-1.jsonl",
         sessionId: "session-1",
-        cwd: "C:\\Users\\ericali",
         turnId: "turn-1",
       },
       {
@@ -36,7 +35,6 @@ module.exports = function runCodexEventTests(h) {
         filePath:
           "C:\\Users\\ericali\\.codex\\sessions\\2026\\03\\20\\rollout-2026-03-20T12-14-50-session-4.jsonl",
         sessionId: "session-4",
-        cwd: "C:\\Users\\ericali",
         turnId: "turn-4",
       },
       {
@@ -60,7 +58,6 @@ module.exports = function runCodexEventTests(h) {
         filePath:
           "C:\\Users\\ericali\\.codex\\sessions\\2026\\04\\09\\rollout-2026-04-09T16-20-00-session-stop.jsonl",
         sessionId: "session-stop",
-        cwd: "D:\\tmp",
         turnId: "turn-stop",
       },
       {
@@ -78,11 +75,7 @@ module.exports = function runCodexEventTests(h) {
 
   test("tui watcher ignores require_escalated shell tool calls", () => {
     const event = events.buildCodexTuiInputEvent(
-      {},
-      '2026-03-20T04:15:29.835774Z  INFO session_loop{thread_id=session-3}:submission_dispatch{otel.name="op.dispatch.user_turn" submission.id="submission-3" codex.op="user_turn"}:turn{otel.name="session_task.turn" thread.id=session-3 turn.id=turn-3 model=gpt-5.4}: codex_core::stream_events_utils: ToolCall: shell_command {"command":"Get-Date","sandbox_permissions":"require_escalated","workdir":"C:\\\\Users\\\\ericali"} thread_id=session-3',
-      {
-        sessionProjectDirs: new Map([["session-3", "C:\\Users\\ericali"]]),
-      }
+      '2026-03-20T04:15:29.835774Z  INFO session_loop{thread_id=session-3}:submission_dispatch{otel.name="op.dispatch.user_turn" submission.id="submission-3" codex.op="user_turn"}:turn{otel.name="session_task.turn" thread.id=session-3 turn.id=turn-3 model=gpt-5.4}: codex_core::stream_events_utils: ToolCall: shell_command {"command":"Get-Date","sandbox_permissions":"require_escalated","workdir":"C:\\\\Users\\\\ericali"} thread_id=session-3'
     );
 
     assert(event === null);
@@ -95,7 +88,6 @@ module.exports = function runCodexEventTests(h) {
         filePath:
           "C:\\Users\\ericali\\.codex\\sessions\\2026\\04\\03\\rollout-2026-04-03T16-04-13-session-input.jsonl",
         sessionId: "session-input",
-        cwd: "D:\\tmp",
         turnId: "turn-input",
       },
       {
@@ -121,6 +113,7 @@ module.exports = function runCodexEventTests(h) {
     assert(event.agentId === "codex");
     assert(event.entryPointId === "rollout-watch");
     assert(!("source" in event));
+    assert(!("projectDir" in event));
     assert(event.eventName === "InputRequest");
     assert(event.title === "Input Needed");
     assert(event.message === promptText);
@@ -149,7 +142,6 @@ module.exports = function runCodexEventTests(h) {
           filePath:
             "C:\\Users\\ericali\\.codex\\sessions\\2026\\04\\03\\rollout-2026-04-03T16-04-13-session-live-input.jsonl",
           sessionId: "session-live-input",
-          cwd: TEST_PACKAGE_DIR,
           turnId: "turn-live-input",
         },
         JSON.stringify({
@@ -171,7 +163,6 @@ module.exports = function runCodexEventTests(h) {
         }),
         {
           runtime: { log: () => {} },
-          sessionsDir: "",
           terminal: { hwnd: null, shellPid: null, isWindowsTerminal: false },
           emittedEventKeys: new Map(),
         }
@@ -189,11 +180,7 @@ module.exports = function runCodexEventTests(h) {
 
   test("tui watcher ignores apply_patch tool calls because they are not input requests", () => {
     const event = events.buildCodexTuiInputEvent(
-      {},
-      '2026-03-20T09:24:55.432022Z  INFO session_loop{thread_id=session-5}:submission_dispatch{otel.name="op.dispatch.user_turn" submission.id="submission-5" codex.op="user_turn"}:turn{otel.name="session_task.turn" thread.id=session-5 turn.id=turn-5 model=gpt-5.4}: codex_core::stream_events_utils: ToolCall: apply_patch *** Begin Patch',
-      {
-        sessionProjectDirs: new Map([["session-5", "C:\\Users\\ericali"]]),
-      }
+      '2026-03-20T09:24:55.432022Z  INFO session_loop{thread_id=session-5}:submission_dispatch{otel.name="op.dispatch.user_turn" submission.id="submission-5" codex.op="user_turn"}:turn{otel.name="session_task.turn" thread.id=session-5 turn.id=turn-5 model=gpt-5.4}: codex_core::stream_events_utils: ToolCall: apply_patch *** Begin Patch'
     );
 
     assert(event === null);
@@ -202,17 +189,14 @@ module.exports = function runCodexEventTests(h) {
   test("tui watcher recognizes request_user_input prompts", () => {
     const promptText = "What plan should I use for the next step?";
     const event = events.buildCodexTuiInputEvent(
-      {},
-      `2026-04-03T08:04:51.916797Z  INFO session_loop{thread_id=session-input}:submission_dispatch{otel.name="op.dispatch.user_input" submission.id="submission-input" codex.op="user_input"}:turn{otel.name="session_task.turn" thread.id=session-input turn.id=turn-input model=gpt-5.4}: codex_core::stream_events_utils: ToolCall: request_user_input {"questions":[{"header":"Plan Type","id":"plan_target","question":"${promptText}","options":[{"label":"Project Plan (Recommended)","description":"Inspect D:\\\\tmp\\\\ai-ui-case-runner-work before finalizing the plan."}]}]} thread_id=session-input`,
-      {
-        sessionProjectDirs: new Map([["session-input", "D:\\tmp"]]),
-      }
+      `2026-04-03T08:04:51.916797Z  INFO session_loop{thread_id=session-input}:submission_dispatch{otel.name="op.dispatch.user_input" submission.id="submission-input" codex.op="user_input"}:turn{otel.name="session_task.turn" thread.id=session-input turn.id=turn-input model=gpt-5.4}: codex_core::stream_events_utils: ToolCall: request_user_input {"questions":[{"header":"Plan Type","id":"plan_target","question":"${promptText}","options":[{"label":"Project Plan (Recommended)","description":"Inspect D:\\\\tmp\\\\ai-ui-case-runner-work before finalizing the plan."}]}]} thread_id=session-input`
     );
 
     assert(event);
     assert(event.agentId === "codex");
     assert(event.entryPointId === "tui-watch");
     assert(!("source" in event));
+    assert(!("projectDir" in event));
     assert(event.eventName === "InputRequest");
     assert(event.title === "Input Needed");
     assert(event.message === promptText);

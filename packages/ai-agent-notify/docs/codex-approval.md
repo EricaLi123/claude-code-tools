@@ -111,7 +111,7 @@ InputRequest
 | 主题 | 主要文件 |
 | --- | --- |
 | watcher 生命周期、单实例锁、build replace | [`../lib/codex-session-watch-runner.js`](../lib/codex-session-watch-runner.js) |
-| rollout 扫描与元数据读取 | [`../lib/codex-session-watch-files.js`](../lib/codex-session-watch-files.js) |
+| rollout 文件扫描 | [`../lib/codex-session-watch-files.js`](../lib/codex-session-watch-files.js) |
 | 增量消费 rollout / TUI | [`../lib/codex-session-watch-streams.js`](../lib/codex-session-watch-streams.js)、[`../lib/codex-session-watch-handlers.js`](../lib/codex-session-watch-handlers.js) |
 | watcher 定位与通知发送 | [`../lib/codex-session-watch-notify.js`](../lib/codex-session-watch-notify.js) |
 | `SessionStart` hook bootstrap | [`../lib/codex-session-start-hook.js`](../lib/codex-session-start-hook.js) |
@@ -130,7 +130,7 @@ InputRequest
 
 ### 为什么不再保留 observation reconcile
 
-`SessionStart` 触发时已经同时拿得到官方 `session_id` 和本地当前终端附着关系，所以旧的“先写 observation、后面对账”链路已经是历史复杂度。删掉 reconcile 和 `projectDir` fallback 之后，定位语义更可预期，也更不容易误命中别的 WT tab。
+`SessionStart` 触发时已经同时拿得到官方 `session_id` 和本地当前终端附着关系，所以旧的“先写 observation、后面对账”链路已经是历史复杂度。删掉 reconcile 和 `cwd/projectDir` 窗口级 fallback 之后，定位语义更可预期，也更不容易误命中别的 WT tab。
 
 ## 改完后至少检查什么
 

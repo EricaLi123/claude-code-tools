@@ -6,7 +6,7 @@ const {
   parseJsonObjectMaybe,
 } = require("./codex-session-event-descriptors");
 
-function buildCodexTuiInputEvent(tuiState, line, { sessionProjectDirs }) {
+function buildCodexTuiInputEvent(line) {
   const toolCall = parseCodexTuiToolCallLine(line);
   if (!toolCall || toolCall.toolName !== "request_user_input") {
     return null;
@@ -22,7 +22,6 @@ function buildCodexTuiInputEvent(tuiState, line, { sessionProjectDirs }) {
       sessionId,
       turnId,
       eventName: "InputRequest",
-      projectDir: sessionProjectDirs.get(sessionId) || "",
       rawEventType: "request_user_input",
       message: getCodexInputRequestMessage(args),
     }),

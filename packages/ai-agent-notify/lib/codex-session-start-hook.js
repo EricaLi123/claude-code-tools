@@ -15,9 +15,7 @@ function runCodexSessionStartHook({
   const runtime = createRuntimeImpl(`codex-session-start-${sessionId || Date.now()}`);
 
   runtime.log(
-    `started mode=codex-session-start sessionId=${sessionId} source=${payload?.source || ""} cwd=${
-      payload?.projectDir || ""
-    } transcriptPath=${payload?.transcriptPath || ""} packageRoot=${runtime.buildInfo.packageRoot}`
+    `started mode=codex-session-start sessionId=${sessionId} packageRoot=${runtime.buildInfo.packageRoot}`
   );
 
   const watcher = ensureCodexSessionWatchRunningImpl({
@@ -27,9 +25,7 @@ function runCodexSessionStartHook({
   const terminal = detectTerminalContextImpl(argv, runtime.log);
 
   if (!terminal.hwnd && !terminal.shellPid) {
-    runtime.log(
-      `session-start terminal context unavailable sessionId=${sessionId} source=${payload?.source || ""}`
-    );
+    runtime.log(`session-start terminal context unavailable sessionId=${sessionId}`);
     return { handled: true, watcher, terminal, record: null };
   }
 
@@ -41,9 +37,9 @@ function runCodexSessionStartHook({
   });
 
   runtime.log(
-    `stored session terminal context sessionId=${record.sessionId} source=${payload?.source || ""} hwnd=${
-      record.hwnd || ""
-    } shellPid=${record.shellPid || ""} isWindowsTerminal=${record.isWindowsTerminal ? "1" : "0"}`
+    `stored session terminal context sessionId=${record.sessionId} hwnd=${record.hwnd || ""} shellPid=${
+      record.shellPid || ""
+    } isWindowsTerminal=${record.isWindowsTerminal ? "1" : "0"}`
   );
 
   return { handled: true, watcher, terminal, record };

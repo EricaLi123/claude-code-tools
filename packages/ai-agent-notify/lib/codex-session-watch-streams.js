@@ -16,7 +16,6 @@ function consumeSessionFileUpdates(
   stat,
   {
     runtime,
-    sessionsDir,
     terminal,
     emittedEventKeys,
   }
@@ -32,7 +31,6 @@ function consumeSessionFileUpdates(
       }
       handleSessionRecord(state, line, {
         runtime,
-        sessionsDir,
         terminal,
         emittedEventKeys,
       });
@@ -86,10 +84,8 @@ function consumeCodexTuiLogUpdates(
   stat,
   {
     runtime,
-    sessionsDir,
     terminal,
     emittedEventKeys,
-    sessionProjectDirs,
   }
 ) {
   consumeTailFileLines({
@@ -98,12 +94,10 @@ function consumeCodexTuiLogUpdates(
     runtime,
     truncationLabel: "tui log",
     onLine: (line) => {
-      handleCodexTuiLogLine(state, line, {
+      handleCodexTuiLogLine(line, {
         runtime,
-        sessionsDir,
         terminal,
         emittedEventKeys,
-        sessionProjectDirs,
       });
     },
   });

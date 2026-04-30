@@ -24,7 +24,6 @@ function buildCodexSessionEvent(state, record) {
   }
 
   const sessionId = state.sessionId || parseSessionIdFromRolloutPath(state.filePath) || "unknown";
-  const projectDir = payload.cwd || state.cwd || "";
   const turnId = payload.turn_id || state.turnId || "";
   const callId = payload.call_id || "";
   const descriptor = getCodexInputRequestDescriptor(args);
@@ -36,7 +35,6 @@ function buildCodexSessionEvent(state, record) {
       sessionId,
       turnId,
       eventName: "InputRequest",
-      projectDir,
       rawEventType: payload.name,
       message: getCodexInputRequestMessage(args),
     }),

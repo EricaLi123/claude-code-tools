@@ -30,12 +30,8 @@ module.exports = function runSessionStartTests(h) {
     });
 
     assert(payload);
-    assert(payload.agentId === "codex");
-    assert(payload.entryPointId === "session-start-hook");
     assert(payload.sessionId === "session-start-1");
-    assert(payload.projectDir === TEST_PROJECT_DIR);
-    assert(payload.source === "startup");
-    assert(payload.transcriptPath.includes("session.jsonl"));
+    assert(JSON.stringify(Object.keys(payload).sort()) === JSON.stringify(["sessionId"]));
   });
 
   test("SessionStart hook ensures watcher and persists exact terminal context", () => {
@@ -49,9 +45,6 @@ module.exports = function runSessionStartTests(h) {
         cliPath: "D:\\git\\ai-tools\\packages\\ai-agent-notify\\bin\\cli.js",
         payload: {
           sessionId,
-          projectDir: TEST_PROJECT_DIR,
-          transcriptPath: "C:\\Users\\ericali\\.codex\\history\\session.jsonl",
-          source: "resume",
         },
         createRuntimeImpl: () => ({
           buildInfo: { packageRoot: ROOT },
@@ -92,8 +85,6 @@ module.exports = function runSessionStartTests(h) {
       cliPath: "D:\\git\\ai-tools\\packages\\ai-agent-notify\\bin\\cli.js",
       payload: {
         sessionId,
-        projectDir: TEST_PROJECT_DIR,
-        source: "startup",
       },
       createRuntimeImpl: () => ({
         buildInfo: { packageRoot: ROOT },

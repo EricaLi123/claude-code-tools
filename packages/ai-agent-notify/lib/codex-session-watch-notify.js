@@ -7,7 +7,6 @@ function emitCodexSessionWatchNotification({
   terminal,
   emittedEventKeys,
   origin,
-  sessionsDir,
   resolveSessionWatchTerminalContextImpl = resolveSessionWatchTerminalContext,
   emitNotificationImpl = emitNotification,
 }) {
@@ -16,15 +15,13 @@ function emitCodexSessionWatchNotification({
   }
 
   runtime.log(
-    `${origin} event matched type=${event.eventType} sessionId=${event.sessionId || "unknown"} turnId=${event.turnId || ""} cwd=${event.projectDir || ""}`
+    `${origin} event matched type=${event.eventType} sessionId=${event.sessionId || "unknown"} turnId=${event.turnId || ""}`
   );
 
   const notificationTerminal = resolveSessionWatchTerminalContextImpl({
     sessionId: event.sessionId,
-    projectDir: event.projectDir,
     fallbackTerminal: terminal,
     log: runtime.log,
-    sessionsDir,
   });
 
   const child = emitNotificationImpl({
