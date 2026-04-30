@@ -8,7 +8,6 @@ const {
   createSessionFileState,
   listRolloutFiles,
 } = require("./codex-session-watch-files");
-const { reconcileSidecarSessions } = require("./codex-sidecar-matcher");
 const {
   consumeSessionFileUpdates,
   pruneEmittedEventKeys,
@@ -145,11 +144,6 @@ async function runCodexSessionWatchMode(argv) {
         if (!existing.has(filePath)) {
           fileStates.delete(filePath);
         }
-      });
-
-      reconcileSidecarSessions({
-        sessionsDir,
-        log: runtime.log,
       });
 
       tuiLogState = syncCodexTuiLogState(tuiLogState, tuiLogPath, {

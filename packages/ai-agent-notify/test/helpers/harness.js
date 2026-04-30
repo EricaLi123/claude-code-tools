@@ -11,10 +11,8 @@ const sessionWatchNotify = require(path.join(ROOT, "lib", "codex-session-watch-n
 const sessionEventDescriptors = require(path.join(ROOT, "lib", "codex-session-event-descriptors.js"));
 const sessionRolloutEvents = require(path.join(ROOT, "lib", "codex-session-rollout-events.js"));
 const sessionTuiEvents = require(path.join(ROOT, "lib", "codex-session-tui-events.js"));
-const mcpServer = require(path.join(ROOT, "lib", "codex-mcp-server.js"));
-const sidecarResolver = require(path.join(ROOT, "lib", "codex-sidecar-resolver.js"));
-const sidecarMatcher = require(path.join(ROOT, "lib", "codex-sidecar-matcher.js"));
-const sidecarStore = require(path.join(ROOT, "lib", "codex-sidecar-store.js"));
+const sessionStartHook = require(path.join(ROOT, "lib", "codex-session-start-hook.js"));
+const terminalContextStore = require(path.join(ROOT, "lib", "codex-terminal-context-store.js"));
 const sessionWatchRunner = require(path.join(ROOT, "lib", "codex-session-watch-runner.js"));
 const notifyRuntime = require(path.join(ROOT, "lib", "notify-runtime.js"));
 const windowsPaths = require(path.join(ROOT, "lib", "windows-paths.js"));
@@ -28,16 +26,16 @@ const { normalizeIncomingNotification } = require(path.join(
   "lib",
   "notification-source-parsers.js"
 ));
+const { findCodexSessionStartPayload } = require(path.join(
+  ROOT,
+  "lib",
+  "notification-source-parsers.js"
+));
 
 const events = {
   ...sessionEventDescriptors,
   ...sessionRolloutEvents,
   ...sessionTuiEvents,
-};
-
-const sidecarState = {
-  ...sidecarMatcher,
-  ...sidecarStore,
 };
 
 function createHarness() {
@@ -152,18 +150,18 @@ function createHarness() {
     execFileSync,
     finish,
     fs,
-    mcpServer,
+    findCodexSessionStartPayload,
     normalizeIncomingNotification,
     normalizeTestPath,
     notifyRuntime,
     path,
     read,
     section,
+    sessionStartHook,
     sessionWatchNotify,
     sessionWatchRunner,
-    sidecarResolver,
-    sidecarState,
     skip,
+    terminalContextStore,
     test,
     windowsPaths,
   };

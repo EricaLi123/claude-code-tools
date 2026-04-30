@@ -1,8 +1,4 @@
-const {
-  findSidecarTerminalContextForProjectDir,
-  findSidecarTerminalContextForSession,
-  reconcileSidecarSessions,
-} = require("./codex-sidecar-matcher");
+const { findTerminalContextForSession } = require("./codex-terminal-context-store");
 const { emitNotification } = require("./notify-runtime");
 
 function emitCodexSessionWatchNotification({
@@ -72,61 +68,22 @@ function shouldEmitEventKey(emittedEventKeys, eventKey) {
 
 function resolveSessionWatchTerminalContext({
   sessionId,
-  projectDir,
   fallbackTerminal,
   log,
-  sessionsDir,
 }) {
-  let terminal = findSidecarTerminalContextForSession(sessionId, log);
-  if ((!terminal || (!terminal.hwnd && !terminal.shellPid)) && sessionsDir) {
-    const reconciled = reconcileSidecarSessions({
-      sessionsDir,
-      targetSessionId: sessionId,
-      projectDir,
-      log,
-    });
-    if (reconciled > 0 && typeof log === "function") {
-      log(
-        `session-watch terminal reconcile retried sessionId=${sessionId || "unknown"} projectDir=${projectDir || ""} reconciled=${reconciled}`
-      );
-    }
-    terminal = findSidecarTerminalContextForSession(sessionId, log);
-  }
+  const terminal = findTerminalContextForSession(sessionId, log);
 
   if (!terminal || (!terminal.hwnd && !terminal.shellPid)) {
     if (typeof log === "function") {
-      log(
-        `session-watch terminal exact sidecar match missed sessionId=${sessionId || "unknown"} projectDir=${projectDir || ""}`
-      );
+      log(`session-watch terminal exact session match missed sessionId=${sessionId || "unknown"}`);
     }
 
-    const projectFallback = findSidecarTerminalContextForProjectDir(projectDir, log);
-    if (!projectFallback || !projectFallback.hwnd) {
-      if (typeof log === "function") {
-        log(
-          `session-watch terminal resolved via default fallback sessionId=${sessionId || "unknown"} projectDir=${projectDir || ""} reason=no_sidecar_match`
-        );
-      }
-      return fallbackTerminal;
-    }
-
-    if (typeof log === "function") {
-      log(
-        `session-watch terminal resolved via project-dir fallback sessionId=${sessionId || "unknown"} projectDir=${projectDir || ""} hwnd=${projectFallback.hwnd || ""}`
-      );
-    }
-
-    return {
-      // Weak cwd fallback only reuses the window handle; reusing shellPid can target the wrong tab.
-      hwnd: projectFallback.hwnd,
-      shellPid: null,
-      isWindowsTerminal: false,
-    };
+    return fallbackTerminal;
   }
 
   if (typeof log === "function") {
     log(
-      `session-watch terminal resolved via exact sidecar match sessionId=${sessionId || "unknown"} shellPid=${terminal.shellPid || ""} hwnd=${terminal.hwnd || ""}`
+      `session-watch terminal resolved via exact session match sessionId=${sessionId || "unknown"} shellPid=${terminal.shellPid || ""} hwnd=${terminal.hwnd || ""}`
     );
   }
 

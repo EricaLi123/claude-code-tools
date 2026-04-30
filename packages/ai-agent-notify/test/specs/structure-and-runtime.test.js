@@ -18,14 +18,11 @@ module.exports = function runStructureAndRuntimeTests(h) {
   [
     "AGENTS.md",
     "bin/cli.js",
-    "lib/codex-mcp-sidecar-mode.js",
-    "lib/codex-mcp-server.js",
-    "lib/codex-sidecar-matcher.js",
-    "lib/codex-sidecar-resolver.js",
-    "lib/codex-sidecar-store.js",
+    "lib/codex-session-start-hook.js",
     "lib/codex-session-event-descriptors.js",
     "lib/codex-session-rollout-events.js",
     "lib/codex-session-tui-events.js",
+    "lib/codex-terminal-context-store.js",
     "lib/codex-session-watch-files.js",
     "lib/codex-session-watch-handlers.js",
     "lib/codex-session-watch-notify.js",
@@ -73,10 +70,15 @@ module.exports = function runStructureAndRuntimeTests(h) {
     "lib/codex-completion-pending.js",
     "lib/codex-completion-receipts.js",
     "lib/codex-event-reconciliation.js",
+    "lib/codex-mcp-server.js",
+    "lib/codex-mcp-sidecar-mode.js",
     "lib/codex-session-events.js",
     "lib/codex-session-watch.js",
     "lib/codex-hook-notify-mode.js",
     "lib/notification-sources.js",
+    "lib/codex-sidecar-matcher.js",
+    "lib/codex-sidecar-resolver.js",
+    "lib/codex-sidecar-store.js",
     "lib/codex-sidecar-state.js",
     "lib/shell-command-analysis.js",
     "docs/development.md",
@@ -108,16 +110,13 @@ module.exports = function runStructureAndRuntimeTests(h) {
 
   const cliContent = read("bin/cli.js");
   const agentsContent = read("AGENTS.md");
-  const mcpSidecarModeContent = read("lib/codex-mcp-sidecar-mode.js");
-  const mcpServerContent = read("lib/codex-mcp-server.js");
+  const sessionStartHookContent = read("lib/codex-session-start-hook.js");
   const notifyTerminalContextContent = read("lib/notify-terminal-context.js");
   const notifyRuntimeContent = read("lib/notify-runtime.js");
-  const sidecarMatcherContent = read("lib/codex-sidecar-matcher.js");
-  const sidecarResolverContent = read("lib/codex-sidecar-resolver.js");
-  const sidecarStoreContent = read("lib/codex-sidecar-store.js");
   const sessionEventDescriptorsContent = read("lib/codex-session-event-descriptors.js");
   const sessionRolloutEventsContent = read("lib/codex-session-rollout-events.js");
   const sessionTuiEventsContent = read("lib/codex-session-tui-events.js");
+  const terminalContextStoreContent = read("lib/codex-terminal-context-store.js");
   const sessionWatchFilesContent = read("lib/codex-session-watch-files.js");
   const sessionWatchHandlersContent = read("lib/codex-session-watch-handlers.js");
   const sessionWatchNotifyContent = read("lib/codex-session-watch-notify.js");
@@ -135,7 +134,7 @@ module.exports = function runStructureAndRuntimeTests(h) {
   test("cli.js is now a thin mode dispatcher with no watcher approval or completion helpers", () => {
     assert(cliContent.includes("../lib/notify-runtime"));
     assert(cliContent.includes("../lib/codex-session-watch-runner"));
-    assert(cliContent.includes("../lib/codex-mcp-sidecar-mode"));
+    assert(cliContent.includes("../lib/codex-session-start-hook"));
     assert(cliContent.includes("../lib/notification-source-parsers"));
     assert(!cliContent.includes('require("../lib/codex-event-reconciliation")'));
     assert(!cliContent.includes('require("../lib/codex-completion-receipts")'));
@@ -143,9 +142,8 @@ module.exports = function runStructureAndRuntimeTests(h) {
     assert(!cliContent.includes('require("../lib/codex-session-events")'));
     assert(!cliContent.includes('require("../lib/codex-session-watch")'));
     assert(!cliContent.includes('require("../lib/notification-sources")'));
+    assert(!cliContent.includes("codex-mcp-sidecar"));
     assert(!cliContent.includes("module.exports = {"));
-    assert(!cliContent.includes("function handleMcpServerMessage("));
-    assert(!cliContent.includes("function resolveSidecarSessionCandidate("));
     assert(!cliContent.includes("function ensureCodexSessionWatchRunning("));
     assert(!cliContent.includes("function acquireSingleInstanceLock("));
   });
@@ -155,6 +153,7 @@ module.exports = function runStructureAndRuntimeTests(h) {
     assert(agentsContent.includes("docs/README.md"));
     assert(agentsContent.includes("文档分工和阅读顺序看 `docs/README.md`"));
     assert(agentsContent.includes("`notify` 负责 completion"));
+    assert(agentsContent.includes("`SessionStart`"));
     assert(agentsContent.includes("`codex-session-watch` 只负责 `InputRequest`"));
     assert(agentsContent.includes("direct notify 保持单进程"));
     assert(agentsContent.includes("`hooks.json` 的 `timeout`"));
@@ -220,23 +219,19 @@ module.exports = function runStructureAndRuntimeTests(h) {
     assert(sessionEventDescriptorsContent.includes("function buildSessionEventDedupeKey("));
     assert(!sessionEventDescriptorsContent.includes("function getCodexExecApprovalDescriptor("));
     assert(sessionWatchNotifyContent.includes("function emitCodexSessionWatchNotification("));
-    assert(sessionWatchNotifyContent.includes('require("./codex-sidecar-matcher")'));
+    assert(sessionWatchNotifyContent.includes('require("./codex-terminal-context-store")'));
+    assert(!sessionWatchNotifyContent.includes("project-dir fallback"));
+    assert(!sessionWatchNotifyContent.includes("reconcile"));
   });
 
-  test("mcp sidecar protocol handling lives in its own module", () => {
-    assert(cliContent.includes("codex-mcp-sidecar"));
-    assert(cliContent.includes("Run a minimal MCP sidecar"));
-    assert(mcpSidecarModeContent.includes('require("./codex-session-watch-runner")'));
-    assert(mcpSidecarModeContent.includes("function runCodexMcpSidecarMode("));
-    assert(mcpSidecarModeContent.includes("ensureCodexSessionWatchRunning"));
-    assert(!mcpSidecarModeContent.includes("startSidecarSessionResolver"));
-    assert(!mcpSidecarModeContent.includes("resolveSidecarSessionCandidate"));
-    assert(mcpServerContent.includes('case "initialize"'));
-    assert(mcpServerContent.includes('case "ping"'));
-    assert(mcpServerContent.includes('case "tools/list"'));
-    assert(mcpServerContent.includes('case "resources/list"'));
-    assert(mcpServerContent.includes('case "resources/templates/list"'));
-    assert(mcpServerContent.includes('case "prompts/list"'));
+  test("SessionStart hook bootstrap lives in its own module", () => {
+    assert(cliContent.includes("SessionStart bootstrap"));
+    assert(sessionStartHookContent.includes('require("./codex-session-watch-runner")'));
+    assert(sessionStartHookContent.includes('require("./codex-terminal-context-store")'));
+    assert(sessionStartHookContent.includes("function runCodexSessionStartHook("));
+    assert(sessionStartHookContent.includes("ensureCodexSessionWatchRunning"));
+    assert(sessionStartHookContent.includes("writeTerminalContextRecord"));
+    assert(!sessionStartHookContent.includes("handleMcpServerMessage"));
   });
 
   test("notify-runtime.js prefixes runtime log files with the package name", () => {
@@ -345,17 +340,13 @@ module.exports = function runStructureAndRuntimeTests(h) {
     }
   });
 
-  test("sidecar matching and persistence are split by responsibility", () => {
-    assert(sidecarMatcherContent.includes('require("./windows-paths")'));
-    assert(sidecarMatcherContent.includes('require("./codex-sidecar-store")'));
-    assert(sidecarMatcherContent.includes("function findSidecarTerminalContextForSession("));
-    assert(sidecarMatcherContent.includes("function reconcileSidecarSessions("));
-    assert(sidecarResolverContent.includes('require("./codex-session-watch-files")'));
-    assert(sidecarResolverContent.includes('require("./shared-utils")'));
-    assert(sidecarResolverContent.includes("function resolveSidecarSessionCandidate("));
-    assert(!sidecarResolverContent.includes("function startSidecarSessionResolver("));
-    assert(sidecarStoreContent.includes("function writeSidecarRecord("));
-    assert(sidecarStoreContent.includes("function pruneStaleSidecarRecords("));
+  test("SessionStart persistence is minimal and session-keyed", () => {
+    assert(terminalContextStoreContent.includes("function writeTerminalContextRecord("));
+    assert(terminalContextStoreContent.includes("function findTerminalContextForSession("));
+    assert(terminalContextStoreContent.includes("function pruneStaleTerminalContextRecords("));
+    assert(terminalContextStoreContent.includes('kind: "codex-session-start"'));
+    assert(!terminalContextStoreContent.includes("cwd"));
+    assert(!terminalContextStoreContent.includes("resolvedAt"));
   });
 
   test("shared utils centralize argv/env and integer parsing helpers", () => {
@@ -364,7 +355,7 @@ module.exports = function runStructureAndRuntimeTests(h) {
     assert(sharedUtilsContent.includes("function parsePositiveInteger("));
     assert(!notifyRuntimeContent.includes("function getArgValue("));
     assert(!notifyRuntimeContent.includes("function getEnvFirst("));
-    assert(!sidecarResolverContent.includes("function parsePositiveInteger("));
+    assert(!terminalContextStoreContent.includes("function parsePositiveInteger("));
   });
 
   test("notification agent normalization is split into parser and display modules", () => {

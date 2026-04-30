@@ -3,16 +3,17 @@
 const fs = require("fs");
 const path = require("path");
 
-const { runCodexMcpSidecarMode } = require("../lib/codex-mcp-sidecar-mode");
+const { runCodexSessionStartHook } = require("../lib/codex-session-start-hook");
 const { runCodexSessionWatchMode } = require("../lib/codex-session-watch-runner");
 const {
   createRuntime,
   detectTerminalContext,
   emitNotification,
 } = require("../lib/notify-runtime");
-const { normalizeIncomingNotification } = require("../lib/notification-source-parsers");
-
-const PACKAGE_VERSION = readPackageVersion();
+const {
+  findCodexSessionStartPayload,
+  normalizeIncomingNotification,
+} = require("../lib/notification-source-parsers");
 
 if (require.main === module) {
   runCli();
@@ -57,24 +58,27 @@ async function main() {
     return;
   }
 
-  if (argv[0] === "codex-mcp-sidecar" || argv[0] === "mcp-sidecar") {
-    const result = await runCodexMcpSidecarMode({
-      argv: argv.slice(1),
-      cliPath: path.resolve(__filename),
-      packageVersion: PACKAGE_VERSION,
-    });
-    if (result && result.handledHelp) {
-      printHelp();
-    }
-    return;
-  }
-
   if (argv[0] === "--help" || argv[0] === "help") {
     printHelp();
     return;
   }
 
-  await runDefaultNotifyMode(argv);
+  const stdinData = readStdin();
+  const sessionStartPayload = findCodexSessionStartPayload({
+    argv,
+    stdinData,
+    env: process.env,
+  });
+  if (sessionStartPayload) {
+    await runCodexSessionStartHook({
+      argv,
+      cliPath: path.resolve(__filename),
+      payload: sessionStartPayload,
+    });
+    return;
+  }
+
+  await runDefaultNotifyMode(argv, { stdinData });
 }
 
 function printHelp() {
@@ -83,12 +87,10 @@ function printHelp() {
       "Usage:",
       "  ai-agent-notify",
       "  ai-agent-notify codex-session-watch [--sessions-dir <path>] [--tui-log <path>] [--poll-ms <ms>]",
-      "  ai-agent-notify codex-mcp-sidecar",
       "",
       "Modes:",
-      "  default             Read notification JSON from stdin or argv and show a notification",
+      "  default             Read notification JSON from stdin or argv and show a notification, or handle Codex SessionStart bootstrap",
       "  codex-session-watch Watch local Codex rollout files and TUI logs for input prompts",
-      "  codex-mcp-sidecar   Run a minimal MCP sidecar that records Codex terminal/session hints and ensures codex-session-watch is running",
       "",
       "Flags:",
       "  --shell-pid <pid>     Override the detected shell pid",
@@ -157,17 +159,6 @@ async function runDefaultNotifyMode(argv, options = {}) {
 
 function shouldSkipNotificationDispatch(env) {
   return Boolean(env && env.GITHUB_ACTIONS === "true");
-}
-
-function readPackageVersion() {
-  try {
-    const packageJson = JSON.parse(
-      fs.readFileSync(path.join(__dirname, "..", "package.json"), "utf8")
-    );
-    return packageJson.version || "0.0.0";
-  } catch {
-    return "0.0.0";
-  }
 }
 
 function readStdin() {

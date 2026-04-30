@@ -71,7 +71,11 @@ function normalizeClaudeHookPayload(candidate) {
     return null;
   }
 
-  if (!hasAnyKey(payload, ["hook_event_name", "session_id"])) {
+  const eventName = getStringField(payload, ["hook_event_name"]);
+  if (
+    !hasAnyKey(payload, ["hook_event_name", "session_id"]) ||
+    (eventName !== "PermissionRequest" && eventName !== "Stop")
+  ) {
     return null;
   }
 
@@ -80,13 +84,58 @@ function normalizeClaudeHookPayload(candidate) {
     entryPointId: "notify-mode",
     transport: candidate.transport,
     sessionId: getStringField(payload, ["session_id"]) || "unknown",
-    eventName: getStringField(payload, ["hook_event_name"]),
+    eventName,
     title: getStringField(payload, ["title"]),
     message: getStringField(payload, ["message"]),
-    rawEventType: getStringField(payload, ["hook_event_name"]),
+    rawEventType: eventName,
     payloadKeys: Object.keys(payload).sort(),
     debugSummary: buildCandidateSummary(candidate),
   });
+}
+
+function findCodexSessionStartPayload({ argv = [], stdinData = "", env = {} } = {}) {
+  const candidates = getIncomingPayloadCandidates(argv, stdinData, env);
+
+  for (const candidate of candidates) {
+    const payload = parseCodexSessionStartPayload(candidate);
+    if (payload) {
+      return payload;
+    }
+  }
+
+  return null;
+}
+
+function parseCodexSessionStartPayload(candidate) {
+  const payload = candidate.parsed;
+  if (!isPlainObject(payload)) {
+    return null;
+  }
+
+  const eventName = getStringField(payload, ["hook_event_name"]);
+  const sessionId = getStringField(payload, ["session_id"]);
+  if (eventName !== "SessionStart" || !sessionId) {
+    return null;
+  }
+
+  const hasCodexHookShape = hasAnyKey(payload, ["transcript_path", "model", "cwd", "source"]);
+  if (!hasCodexHookShape) {
+    return null;
+  }
+
+  return {
+    agentId: "codex",
+    entryPointId: "session-start-hook",
+    transport: candidate.transport,
+    sessionId,
+    hookEventName: eventName,
+    projectDir: getStringField(payload, ["cwd"]),
+    transcriptPath: getStringField(payload, ["transcript_path"]),
+    model: getStringField(payload, ["model"]),
+    source: getStringField(payload, ["source"]),
+    payloadKeys: Object.keys(payload).sort(),
+    debugSummary: buildCandidateSummary(candidate),
+  };
 }
 
 function normalizeCodexHookPayload(candidate) {
@@ -206,6 +255,18 @@ function inferAgentId(payload) {
 
   if (
     hasAnyKey(payload, [
+      "transcript_path",
+      "tool_name",
+      "tool_input",
+      "stop_hook_active",
+      "last_assistant_message",
+    ])
+  ) {
+    return "codex";
+  }
+
+  if (
+    hasAnyKey(payload, [
       "thread-id",
       "thread_id",
       "threadId",
@@ -312,6 +373,7 @@ function getStringField(payload, keys) {
 }
 
 module.exports = {
+  findCodexSessionStartPayload,
   getIncomingPayloadCandidates,
   normalizeIncomingNotification,
   parseJsonMaybe,

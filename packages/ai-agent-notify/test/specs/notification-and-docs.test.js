@@ -3,6 +3,7 @@ module.exports = function runNotificationAndDocsTests(h) {
     assert,
     assertLocalMarkdownLinksExist,
     createNotificationSpec,
+    findCodexSessionStartPayload,
     normalizeIncomingNotification,
     read,
     section,
@@ -172,6 +173,28 @@ module.exports = function runNotificationAndDocsTests(h) {
     assert(normalized.rawEventType === "Stop");
   });
 
+  test("SessionStart parser recognizes Codex hook bootstrap payloads", () => {
+    const payload = findCodexSessionStartPayload({
+      argv: [],
+      stdinData: JSON.stringify({
+        hook_event_name: "SessionStart",
+        session_id: "codex-hooks-session-start",
+        cwd: TEST_PROJECT_DIR,
+        transcript_path: "C:\\Users\\ericali\\.codex\\history\\session.jsonl",
+        model: "gpt-5.5",
+        source: "startup",
+      }),
+      env: {},
+    });
+
+    assert(payload);
+    assert(payload.agentId === "codex");
+    assert(payload.entryPointId === "session-start-hook");
+    assert(payload.sessionId === "codex-hooks-session-start");
+    assert(payload.projectDir === TEST_PROJECT_DIR);
+    assert(payload.source === "startup");
+  });
+
   test("notification agent normalizer ignores explicit source while respecting title and message", () => {
     const normalized = normalizeIncomingNotification({
       argv: [],
@@ -192,10 +215,11 @@ module.exports = function runNotificationAndDocsTests(h) {
   test("README documents codex session watcher as input-only support", () => {
     const readmeContent = read("README.md");
     assert(readmeContent.includes("codex-session-watch"));
-    assert(readmeContent.includes("auto-start `codex-session-watch`"));
+    assert(readmeContent.includes("`SessionStart` 会确保 `codex-session-watch` 已运行"));
     assert(readmeContent.includes("`notify-mode`"));
     assert(readmeContent.includes("`rollout-watch`"));
     assert(readmeContent.includes("`tui-watch`"));
+    assert(readmeContent.includes("`session-start-hook`"));
     assert(readmeContent.includes("`claude`"));
     assert(readmeContent.includes("input prompts"));
     assert(readmeContent.includes("watcher 只处理 `InputRequest`"));
@@ -211,7 +235,6 @@ module.exports = function runNotificationAndDocsTests(h) {
     assert(readmeContent.includes('notify = ["ai-agent-notify.cmd"]'));
     assert(readmeContent.includes("`~/.codex/config.toml`:"));
     assert(readmeContent.includes("primary path for Codex turn-complete notifications"));
-    assert(readmeContent.includes("startup_timeout_sec = 30"));
     assert(
       readmeContent.includes(
         "Use `ai-agent-notify.cmd` for Windows direct process launch entries such as"
@@ -222,17 +245,19 @@ module.exports = function runNotificationAndDocsTests(h) {
     assert(!readmeContent.includes("AI_AGENT_NOTIFY_PAYLOAD"));
   });
 
-  test("README documents the codex mcp sidecar companion", () => {
+  test("README documents SessionStart hooks instead of the old mcp sidecar companion", () => {
     const readmeContent = read("README.md");
-    assert(readmeContent.includes("codex-mcp-sidecar"));
-    assert(readmeContent.includes("[mcp_servers.ai_agent_notify_sidecar]"));
-    assert(readmeContent.includes('command = "ai-agent-notify.cmd"'));
-    assert(readmeContent.includes('args = ["codex-mcp-sidecar"]'));
-    assert(readmeContent.includes("Do **not** set `cwd`"));
+    assert(readmeContent.includes("SessionStart"));
+    assert(readmeContent.includes('"matcher": "startup|resume"'));
+    assert(readmeContent.includes("No MCP server config is required for `InputRequest`."));
+    assert(readmeContent.includes("startup|resume|clear"));
+    assert(!readmeContent.includes("[mcp_servers.ai_agent_notify_sidecar]"));
+    assert(!readmeContent.includes("codex-mcp-sidecar"));
   });
 
-  test("README documents hooks for PermissionRequest and Stop while watcher stays on InputRequest", () => {
+  test("README documents hooks for SessionStart, PermissionRequest, and Stop while watcher stays on InputRequest", () => {
     const readmeContent = read("README.md");
+    assert(readmeContent.includes("SessionStart"));
     assert(readmeContent.includes("PermissionRequest"));
     assert(readmeContent.includes("Stop"));
     assert(readmeContent.includes("InputRequest"));
@@ -249,6 +274,7 @@ module.exports = function runNotificationAndDocsTests(h) {
   test("architecture documents hooks ownership and dual-source InputRequest watcher", () => {
     const architectureContent = read("docs/architecture.md");
     assert(architectureContent.includes("hooks-mode"));
+    assert(architectureContent.includes("SessionStart"));
     assert(architectureContent.includes("PermissionRequest"));
     assert(architectureContent.includes("Stop"));
     assert(architectureContent.includes("InputRequest"));
@@ -256,11 +282,12 @@ module.exports = function runNotificationAndDocsTests(h) {
     assert(architectureContent.includes("codex-tui.log"));
     assert(architectureContent.includes("watcher 只处理 `InputRequest`"));
     assert(architectureContent.includes("`hooks.json` 的 `timeout`"));
+    assert(architectureContent.includes("neutral fallback"));
     assert(!architectureContent.includes("detached worker"));
     assert(!architectureContent.includes("task_complete"));
     assert(!architectureContent.includes("completion receipt"));
     assert(!architectureContent.includes("delayed fallback"));
-    assert(!architectureContent.includes("并行对账"));
+    assert(!architectureContent.includes("projectDir / cwd 窗口级 fallback"));
   });
 
   test("docs define agentId and entryPointId as the canonical normalized contract", () => {
@@ -306,6 +333,7 @@ module.exports = function runNotificationAndDocsTests(h) {
     assert(approvalContent.includes('notify = ["ai-agent-notify.cmd"]'));
     assert(approvalContent.includes("codex_hooks = true"));
     assert(approvalContent.includes('"hooks": {'));
+    assert(approvalContent.includes("SessionStart"));
     assert(approvalContent.includes('"timeout": 2'));
     assert(approvalContent.includes("PermissionRequest"));
     assert(approvalContent.includes("Stop"));
@@ -347,11 +375,11 @@ module.exports = function runNotificationAndDocsTests(h) {
     assert(principlesContent.includes("不负责定义当前默认方案"));
     assert(architectureContent.includes("normalizeIncomingNotification()"));
     assert(architectureContent.includes("codex-session-watch"));
-    assert(architectureContent.includes("codex-mcp-sidecar"));
+    assert(architectureContent.includes("codex-session-start-hook.js"));
     assert(architectureContent.includes("rollout JSONL"));
     assert(architectureContent.includes("codex-tui.log"));
     assert(approvalContent.includes("codex-session-watch"));
-    assert(approvalContent.includes("codex-mcp-sidecar"));
+    assert(approvalContent.includes("codex-session-start-hook"));
     assert(approvalContent.includes("hooks.json"));
     assert(approvalContent.includes("watcher 只处理 `InputRequest`"));
     assert(windowsRuntimeContent.includes("ai-agent-notify.cmd"));

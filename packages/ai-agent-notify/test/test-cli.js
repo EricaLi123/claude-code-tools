@@ -6,7 +6,7 @@ const harness = createHarness();
 
 [
   require("./specs/structure-and-runtime.test"),
-  require("./specs/sidecar.test"),
+  require("./specs/session-start.test"),
   require("./specs/codex-events.test"),
   require("./specs/notification-and-docs.test"),
   require("./specs/smoke.test"),
