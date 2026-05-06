@@ -86,16 +86,15 @@ function printHelp() {
     [
       "Usage:",
       "  ai-agent-notify",
-      "  ai-agent-notify codex-session-watch [--sessions-dir <path>] [--tui-log <path>] [--poll-ms <ms>]",
+      "  ai-agent-notify codex-session-watch [--sessions-dir <path>] [--poll-ms <ms>]",
       "",
       "Modes:",
       "  default             Read notification JSON from stdin or argv and show a notification, or handle Codex SessionStart bootstrap",
-      "  codex-session-watch Watch local Codex rollout files and TUI logs for input prompts",
+      "  codex-session-watch Watch local Codex rollout files for input prompts",
       "",
       "Flags:",
       "  --shell-pid <pid>     Override the detected shell pid",
       "  --sessions-dir <path> Override the Codex sessions directory (default: %USERPROFILE%\\.codex\\sessions)",
-      "  --tui-log <path>      Override the Codex TUI log path (default: %USERPROFILE%\\.codex\\log\\codex-tui.log)",
       "  --poll-ms <ms>        Poll interval for session file scanning (default: 1000)",
       "",
     ].join("\n")

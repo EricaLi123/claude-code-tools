@@ -21,7 +21,6 @@ module.exports = function runStructureAndRuntimeTests(h) {
     "lib/codex-session-start-hook.js",
     "lib/codex-session-event-descriptors.js",
     "lib/codex-session-rollout-events.js",
-    "lib/codex-session-tui-events.js",
     "lib/codex-terminal-context-store.js",
     "lib/codex-session-watch-files.js",
     "lib/codex-session-watch-handlers.js",
@@ -73,6 +72,7 @@ module.exports = function runStructureAndRuntimeTests(h) {
     "lib/codex-mcp-server.js",
     "lib/codex-mcp-sidecar-mode.js",
     "lib/codex-session-events.js",
+    "lib/codex-session-tui-events.js",
     "lib/codex-session-watch.js",
     "lib/codex-hook-notify-mode.js",
     "lib/notification-sources.js",
@@ -115,7 +115,6 @@ module.exports = function runStructureAndRuntimeTests(h) {
   const notifyRuntimeContent = read("lib/notify-runtime.js");
   const sessionEventDescriptorsContent = read("lib/codex-session-event-descriptors.js");
   const sessionRolloutEventsContent = read("lib/codex-session-rollout-events.js");
-  const sessionTuiEventsContent = read("lib/codex-session-tui-events.js");
   const terminalContextStoreContent = read("lib/codex-terminal-context-store.js");
   const sessionWatchFilesContent = read("lib/codex-session-watch-files.js");
   const sessionWatchHandlersContent = read("lib/codex-session-watch-handlers.js");
@@ -188,7 +187,6 @@ module.exports = function runStructureAndRuntimeTests(h) {
 
   test("session watcher responsibilities are split across input-only modules", () => {
     assert(cliContent.includes("codex-session-watch"));
-    assert(sessionWatchRunnerContent.includes("codex-tui.log"));
     assert(sessionWatchRunnerContent.includes('acquireSingleInstanceLock("codex-session-watch"'));
     assert(sessionWatchRunnerContent.includes("function runCodexSessionWatchMode("));
     assert(sessionWatchRunnerContent.includes("function ensureCodexSessionWatchRunning("));
@@ -200,30 +198,43 @@ module.exports = function runStructureAndRuntimeTests(h) {
     assert(!sessionWatchFilesContent.includes("function readRolloutMetadata("));
     assert(!sessionWatchFilesContent.includes("approvalPolicy"));
     assert(!sessionWatchFilesContent.includes("sandboxPolicy"));
+    assert(!sessionWatchFilesContent.includes("turnId:"));
     assert(sessionWatchHandlersContent.includes('require("./codex-session-rollout-events")'));
-    assert(sessionWatchHandlersContent.includes('require("./codex-session-tui-events")'));
     assert(sessionWatchHandlersContent.includes('require("./codex-session-watch-notify")'));
     assert(!sessionWatchHandlersContent.includes('require("./codex-approval'));
     assert(!sessionWatchHandlersContent.includes('require("./codex-completion'));
-    assert(sessionWatchStreamsContent.includes('require("./codex-session-watch-files")'));
+    assert(!sessionWatchHandlersContent.includes('record.type === "session_meta"'));
+    assert(!sessionWatchHandlersContent.includes('record.type === "turn_context"'));
+    assert(!sessionWatchHandlersContent.includes("state.turnId"));
     assert(sessionWatchStreamsContent.includes('require("./codex-session-watch-handlers")'));
+    assert(!sessionWatchStreamsContent.includes("syncCodexTuiLogState"));
+    assert(!sessionWatchStreamsContent.includes("createTailFileState"));
+    assert(!sessionWatchStreamsContent.includes("bootstrapTailFileState"));
+    assert(!sessionWatchStreamsContent.includes("tui log"));
     assert(!sessionWatchStreamsContent.includes("pendingApproval"));
     assert(!sessionWatchStreamsContent.includes("pendingCompletion"));
+    assert(!sessionWatchStreamsContent.includes("emittedEventKeys"));
+    assert(!sessionWatchStreamsContent.includes("pruneEmittedEventKeys"));
+    assert(!sessionWatchRunnerContent.includes("emittedEventKeys"));
+    assert(!sessionWatchRunnerContent.includes("pruneEmittedEventKeys"));
     assert(!sessionWatchRunnerContent.includes("sessionProjectDirs"));
     assert(!sessionWatchRunnerContent.includes("cwd="));
     assert(!sessionWatchHandlersContent.includes("state.cwd"));
+    assert(!sessionWatchHandlersContent.includes("emittedEventKeys"));
     assert(!sessionWatchStreamsContent.includes("sessionProjectDirs"));
     assert(sessionRolloutEventsContent.includes("request_user_input"));
     assert(!sessionRolloutEventsContent.includes("projectDir"));
     assert(!sessionRolloutEventsContent.includes("PermissionRequest"));
     assert(!sessionRolloutEventsContent.includes("task_complete"));
     assert(!sessionRolloutEventsContent.includes("require_escalated"));
-    assert(sessionTuiEventsContent.includes("function buildCodexTuiInputEvent("));
-    assert(!sessionTuiEventsContent.includes("sessionProjectDirs"));
-    assert(!sessionTuiEventsContent.includes("projectDir"));
-    assert(!sessionTuiEventsContent.includes("function buildCodexTuiApprovalEvent("));
-    assert(!sessionTuiEventsContent.includes("parseCodexTuiApprovalConfirmation"));
-    assert(sessionEventDescriptorsContent.includes("function buildSessionEventDedupeKey("));
+    assert(!sessionRolloutEventsContent.includes("callId"));
+    assert(!sessionRolloutEventsContent.includes("dedupeKey"));
+    assert(!sessionRolloutEventsContent.includes("payload.turn_id"));
+    assert(!sessionRolloutEventsContent.includes("turnId,"));
+    assert(!sessionRolloutEventsContent.includes("parseSessionIdFromRolloutPath"));
+    assert(sessionRolloutEventsContent.includes('const sessionId = state.sessionId || "unknown";'));
+    assert(!sessionEventDescriptorsContent.includes("function buildSessionEventDedupeKey("));
+    assert(!sessionEventDescriptorsContent.includes("function getCodexInputRequestDescriptor("));
     assert(!sessionEventDescriptorsContent.includes("function getCodexExecApprovalDescriptor("));
     assert(sessionWatchNotifyContent.includes("function emitCodexSessionWatchNotification("));
     assert(sessionWatchNotifyContent.includes('require("./codex-terminal-context-store")'));
@@ -231,6 +242,7 @@ module.exports = function runStructureAndRuntimeTests(h) {
     assert(!sessionWatchNotifyContent.includes("projectDir"));
     assert(!sessionWatchNotifyContent.includes("project-dir fallback"));
     assert(!sessionWatchNotifyContent.includes("reconcile"));
+    assert(!sessionWatchNotifyContent.includes("turnId="));
   });
 
   test("SessionStart hook bootstrap lives in its own module", () => {

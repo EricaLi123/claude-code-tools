@@ -10,7 +10,6 @@ const TEST_PACKAGE_DIR = `${TEST_PROJECT_DIR}\\packages\\ai-agent-notify`;
 const sessionWatchNotify = require(path.join(ROOT, "lib", "codex-session-watch-notify.js"));
 const sessionEventDescriptors = require(path.join(ROOT, "lib", "codex-session-event-descriptors.js"));
 const sessionRolloutEvents = require(path.join(ROOT, "lib", "codex-session-rollout-events.js"));
-const sessionTuiEvents = require(path.join(ROOT, "lib", "codex-session-tui-events.js"));
 const sessionStartHook = require(path.join(ROOT, "lib", "codex-session-start-hook.js"));
 const terminalContextStore = require(path.join(ROOT, "lib", "codex-terminal-context-store.js"));
 const sessionWatchRunner = require(path.join(ROOT, "lib", "codex-session-watch-runner.js"));
@@ -35,7 +34,6 @@ const { findCodexSessionStartPayload } = require(path.join(
 const events = {
   ...sessionEventDescriptors,
   ...sessionRolloutEvents,
-  ...sessionTuiEvents,
 };
 
 function createHarness() {

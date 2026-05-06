@@ -17,24 +17,6 @@ function parseJsonObjectMaybe(value) {
   return typeof value === "object" && !Array.isArray(value) ? value : null;
 }
 
-function getCodexInputRequestDescriptor(args) {
-  const questions = getCodexInputRequestQuestions(args);
-  if (!questions.length) {
-    return "request_user_input";
-  }
-
-  const parts = questions.slice(0, 3).map((question, index) => {
-    return (
-      sanitizeDedupeDescriptorPart(question.id) ||
-      sanitizeDedupeDescriptorPart(question.header) ||
-      sanitizeDedupeDescriptorPart(question.question) ||
-      `q${index + 1}`
-    );
-  });
-
-  return `request_user_input:${parts.join(",")}:${questions.length}`;
-}
-
 function getCodexInputRequestMessage(args) {
   const questions = getCodexInputRequestQuestions(args);
   if (!questions.length) {
@@ -51,15 +33,6 @@ function getCodexInputRequestMessage(args) {
   return questions.length > 1 ? `${firstQuestion} (+${questions.length - 1} more)` : firstQuestion;
 }
 
-function buildSessionEventDedupeKey({ sessionId, turnId, fallbackId, eventKind, descriptor }) {
-  return [
-    sessionId || "unknown",
-    eventKind || "event",
-    turnId || fallbackId || "unknown",
-    descriptor || "",
-  ].join("|");
-}
-
 function parseSessionIdFromRolloutPath(filePath) {
   const match = path
     .basename(filePath)
@@ -71,10 +44,6 @@ function normalizeInlineText(value) {
   return typeof value === "string" ? value.replace(/\s+/g, " ").trim() : "";
 }
 
-function sanitizeDedupeDescriptorPart(value) {
-  return normalizeInlineText(value).replace(/[|]/g, "/").slice(0, 80);
-}
-
 function getCodexInputRequestQuestions(args) {
   return Array.isArray(args && args.questions)
     ? args.questions.filter(
@@ -84,8 +53,6 @@ function getCodexInputRequestQuestions(args) {
 }
 
 module.exports = {
-  buildSessionEventDedupeKey,
-  getCodexInputRequestDescriptor,
   getCodexInputRequestMessage,
   parseJsonObjectMaybe,
   parseSessionIdFromRolloutPath,

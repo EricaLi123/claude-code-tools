@@ -1,10 +1,7 @@
 const { createNotificationSpec } = require("./notification-source-display");
 const {
-  buildSessionEventDedupeKey,
-  getCodexInputRequestDescriptor,
   getCodexInputRequestMessage,
   parseJsonObjectMaybe,
-  parseSessionIdFromRolloutPath,
 } = require("./codex-session-event-descriptors");
 
 function buildCodexSessionEvent(state, record) {
@@ -23,31 +20,21 @@ function buildCodexSessionEvent(state, record) {
     return null;
   }
 
-  const sessionId = state.sessionId || parseSessionIdFromRolloutPath(state.filePath) || "unknown";
-  const turnId = payload.turn_id || state.turnId || "";
-  const callId = payload.call_id || "";
-  const descriptor = getCodexInputRequestDescriptor(args);
-
-  return {
+  const sessionId = state.sessionId || "unknown";
+  const event = {
     ...createNotificationSpec({
       agentId: "codex",
       entryPointId: "rollout-watch",
       sessionId,
-      turnId,
       eventName: "InputRequest",
       rawEventType: payload.name,
       message: getCodexInputRequestMessage(args),
     }),
     eventType: payload.name,
-    callId,
-    dedupeKey: buildSessionEventDedupeKey({
-      sessionId,
-      turnId,
-      fallbackId: callId,
-      eventKind: "input",
-      descriptor,
-    }),
   };
+
+  delete event.turnId;
+  return event;
 }
 
 module.exports = {

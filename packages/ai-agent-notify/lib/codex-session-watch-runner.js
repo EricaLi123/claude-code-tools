@@ -10,8 +10,6 @@ const {
 } = require("./codex-session-watch-files");
 const {
   consumeSessionFileUpdates,
-  pruneEmittedEventKeys,
-  syncCodexTuiLogState,
 } = require("./codex-session-watch-streams");
 const {
   BUILD_INFO,
@@ -38,10 +36,6 @@ async function runCodexSessionWatchMode(argv) {
     getArgValue(argv, "--sessions-dir") ||
     getEnvFirst(["TOAST_NOTIFY_CODEX_SESSIONS_DIR"]) ||
     path.join(getCodexHomeDir(), "sessions");
-  const tuiLogPath =
-    getArgValue(argv, "--tui-log") ||
-    getEnvFirst(["TOAST_NOTIFY_CODEX_TUI_LOG"]) ||
-    path.join(getCodexHomeDir(), "log", "codex-tui.log");
   const pollMs = parsePositiveInteger(getArgValue(argv, "--poll-ms"), 1000);
 
   const runtime = createRuntime(`codex-session-watch-${Date.now()}`);
@@ -55,23 +49,17 @@ async function runCodexSessionWatchMode(argv) {
 
   const terminal = createNeutralTerminalContext();
   const fileStates = new Map();
-  const emittedEventKeys = new Map();
-  let tuiLogState = null;
   let initialScan = true;
   let scanInProgress = false;
   let shuttingDown = false;
 
   runtime.log(
-    `started mode=codex-session-watch sessionsDir=${sessionsDir} tuiLogPath=${tuiLogPath} pollMs=${pollMs} packageRoot=${runtime.buildInfo.packageRoot}`
+    `started mode=codex-session-watch sessionsDir=${sessionsDir} pollMs=${pollMs} packageRoot=${runtime.buildInfo.packageRoot}`
   );
   runtime.log(`acquired single-instance lock file=${instanceLock.lockPath}`);
 
   if (!fileExistsCaseInsensitive(sessionsDir)) {
     runtime.log(`sessions dir not found yet: ${sessionsDir}`);
-  }
-
-  if (!fileExistsCaseInsensitive(tuiLogPath)) {
-    runtime.log(`tui log not found yet: ${tuiLogPath}`);
   }
 
   const interval = setInterval(scanOnce, pollMs);
@@ -130,7 +118,6 @@ async function runCodexSessionWatchMode(argv) {
         consumeSessionFileUpdates(state, stat, {
           runtime,
           terminal,
-          emittedEventKeys,
         });
       });
 
@@ -139,15 +126,6 @@ async function runCodexSessionWatchMode(argv) {
           fileStates.delete(filePath);
         }
       });
-
-      tuiLogState = syncCodexTuiLogState(tuiLogState, tuiLogPath, {
-        initialScan,
-        runtime,
-        terminal,
-        emittedEventKeys,
-      });
-
-      pruneEmittedEventKeys(emittedEventKeys, 4096);
     } catch (error) {
       runtime.log(`session scan failed: ${error.message}`);
     } finally {

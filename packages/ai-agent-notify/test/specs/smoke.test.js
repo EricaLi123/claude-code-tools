@@ -99,7 +99,7 @@ module.exports = function runSmokeTests(h) {
     );
     assert(output.includes("codex-session-watch"));
     assert(output.includes("--sessions-dir"));
-    assert(output.includes("--tui-log"));
+    assert(!output.includes("--tui-log"));
   });
 
   test("runDefaultNotifyMode dispatches direct notifications in the current process", () => {

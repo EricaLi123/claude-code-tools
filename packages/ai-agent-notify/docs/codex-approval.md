@@ -73,7 +73,7 @@ notify = ["ai-agent-notify.cmd"]
 | --- | --- | --- |
 | `PermissionRequest` / `Stop` 的官方输入 | hooks payload、归一化字段 | `notify-mode` + `hooks-mode` |
 | `SessionStart` 怎么 bootstrap `InputRequest` 定位 | hooks payload、本地 terminal 探测、session store | `session-start-hook` |
-| `InputRequest` 怎么被发现 | rollout JSONL / `codex-tui.log` 双来源 | `codex-session-watch` |
+| `InputRequest` 怎么被发现 | rollout JSONL | `codex-session-watch` |
 | `sessionId -> terminal` 怎么解释 | 只读精确 session store | `codex-session-watch` |
 | 通知如何落地到窗口 / tab | Windows 运行时 | [`windows-runtime.md`](./windows-runtime.md) |
 
@@ -99,7 +99,6 @@ InputRequest
   → Later request_user_input
       └─ codex-session-watch
            ├─ 读 rollout JSONL
-           ├─ 读 codex-tui.log
            ├─ 归一化为 InputRequest
            ├─ 先尝试精确 sessionId 定位
            └─ 失败时退回 neutral fallback
@@ -122,7 +121,7 @@ InputRequest
 
 ### 为什么不把 `InputRequest` 直接交给 hooks
 
-当前官方 hooks 已经有 `SessionStart`，但 `InputRequest` 还没有稳定的官方入口，所以仍要依赖 rollout JSONL 和 `codex-tui.log`。这也是 watcher 现在唯一保留的职责。
+当前官方 hooks 已经有 `SessionStart`，但 `InputRequest` 还没有稳定的官方入口，所以仍要依赖 rollout JSONL。这也是 watcher 现在唯一保留的职责。
 
 ### 为什么 hooks-mode 现在走单进程
 

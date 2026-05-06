@@ -5,17 +5,12 @@ function emitCodexSessionWatchNotification({
   event,
   runtime,
   terminal,
-  emittedEventKeys,
   origin,
   resolveSessionWatchTerminalContextImpl = resolveSessionWatchTerminalContext,
   emitNotificationImpl = emitNotification,
 }) {
-  if (!shouldEmitEventKey(emittedEventKeys, event.dedupeKey)) {
-    return false;
-  }
-
   runtime.log(
-    `${origin} event matched type=${event.eventType} sessionId=${event.sessionId || "unknown"} turnId=${event.turnId || ""}`
+    `${origin} event matched type=${event.eventType} sessionId=${event.sessionId || "unknown"}`
   );
 
   const notificationTerminal = resolveSessionWatchTerminalContextImpl({
@@ -50,19 +45,6 @@ function emitCodexSessionWatchNotification({
   return true;
 }
 
-function shouldEmitEventKey(emittedEventKeys, eventKey) {
-  if (!eventKey) {
-    return true;
-  }
-
-  if (emittedEventKeys.has(eventKey)) {
-    return false;
-  }
-
-  emittedEventKeys.set(eventKey, Date.now());
-  return true;
-}
-
 function resolveSessionWatchTerminalContext({
   sessionId,
   fallbackTerminal,
@@ -94,5 +76,4 @@ function resolveSessionWatchTerminalContext({
 module.exports = {
   emitCodexSessionWatchNotification,
   resolveSessionWatchTerminalContext,
-  shouldEmitEventKey,
 };

@@ -1,15 +1,7 @@
 const fs = require("fs");
 const { StringDecoder } = require("string_decoder");
 
-const { fileExistsCaseInsensitive } = require("./shared-utils");
-const {
-  bootstrapTailFileState,
-  createTailFileState,
-} = require("./codex-session-watch-files");
-const {
-  handleCodexTuiLogLine,
-  handleSessionRecord,
-} = require("./codex-session-watch-handlers");
+const { handleSessionRecord } = require("./codex-session-watch-handlers");
 
 function consumeSessionFileUpdates(
   state,
@@ -17,7 +9,6 @@ function consumeSessionFileUpdates(
   {
     runtime,
     terminal,
-    emittedEventKeys,
   }
 ) {
   consumeTailFileLines({
@@ -32,72 +23,6 @@ function consumeSessionFileUpdates(
       handleSessionRecord(state, line, {
         runtime,
         terminal,
-        emittedEventKeys,
-      });
-    },
-  });
-}
-
-function syncCodexTuiLogState(state, tuiLogPath, context) {
-  const fileExists = fileExistsCaseInsensitive(tuiLogPath);
-  if (!fileExists) {
-    return null;
-  }
-
-  let stat;
-  try {
-    stat = fs.statSync(tuiLogPath);
-  } catch (error) {
-    context.runtime.log(`tui log stat failed file=${tuiLogPath} error=${error.message}`);
-    return state;
-  }
-
-  let nextState = state;
-  if (!nextState || nextState.filePath !== tuiLogPath) {
-    nextState = createTailFileState(tuiLogPath);
-    if (context.initialScan) {
-      bootstrapTailFileState(nextState, stat);
-    }
-    context.runtime.log(
-      `tracking tui log file=${tuiLogPath} position=${nextState.position} initialScan=${
-        context.initialScan ? "1" : "0"
-      }`
-    );
-  }
-
-  consumeCodexTuiLogUpdates(nextState, stat, context);
-  return nextState;
-}
-
-function pruneEmittedEventKeys(emittedEventKeys, maxSize) {
-  while (emittedEventKeys.size > maxSize) {
-    const firstKey = emittedEventKeys.keys().next();
-    if (firstKey.done) {
-      return;
-    }
-    emittedEventKeys.delete(firstKey.value);
-  }
-}
-
-function consumeCodexTuiLogUpdates(
-  state,
-  stat,
-  {
-    runtime,
-    terminal,
-    emittedEventKeys,
-  }
-) {
-  consumeTailFileLines({
-    state,
-    stat,
-    runtime,
-    truncationLabel: "tui log",
-    onLine: (line) => {
-      handleCodexTuiLogLine(line, {
-        runtime,
-        terminal,
-        emittedEventKeys,
       });
     },
   });
@@ -148,6 +73,4 @@ function resetTailState(state, position) {
 
 module.exports = {
   consumeSessionFileUpdates,
-  pruneEmittedEventKeys,
-  syncCodexTuiLogState,
 };

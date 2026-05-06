@@ -84,8 +84,7 @@ Optional official Codex hooks:
 ```
 
 - `codex-session-watch` only handles `InputRequest` input prompts.
-- watcher 只处理 `InputRequest`，并继续同时读取 rollout JSONL 和
-  `codex-tui.log` 两条本地信号。
+- watcher 只处理 `InputRequest`，并通过 rollout JSONL 检测输入提示。
 - `SessionStart` 会确保 `codex-session-watch` 已运行，并持久化精确
   `sessionId -> terminal context` 映射。
 - 如果你所在的 Codex 版本也会在 `/clear` 后触发 `SessionStart`，把
@@ -99,7 +98,7 @@ Optional official Codex hooks:
 - `InputRequest` 没有精确 session 记录时仍会发通知，但不会再猜别的窗口或 tab。
 - 归一化事件字段里，`agentId` 只表示 agent 来源，例如 `claude`、`codex`、
   `unknown`；代码入口统一记录在 `entryPointId`，例如 `notify-mode`、
-  `hooks-mode`、`rollout-watch`、`tui-watch`、`session-start-hook`。
+  `hooks-mode`、`rollout-watch`、`session-start-hook`。
 - 面向用户的显示标签只由这两部分组合出来，不再单独保留 `source` 字段。
 
 ## Requirements

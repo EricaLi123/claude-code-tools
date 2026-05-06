@@ -33,7 +33,7 @@
 对 runtime 上游传下来的归一化事件，当前文档约定如下：
 
 - `agentId` 只表示 agent 来源，只应取 `claude`、`codex`、`unknown`。
-- `entryPointId` 只表示本包内部入口，例如 `notify-mode`、`hooks-mode`、`rollout-watch`、`tui-watch`。
+- `entryPointId` 只表示本包内部入口，例如 `notify-mode`、`hooks-mode`、`rollout-watch`。
 - 面向用户的显示标签只由 `agentId + entryPointId` 组合出来，但这不是新的规范字段。
 - `source` 已从规范字段删除；Windows runtime 只透传 `TOAST_NOTIFY_AGENT_ID` 和 `TOAST_NOTIFY_ENTRY_POINT`。
 

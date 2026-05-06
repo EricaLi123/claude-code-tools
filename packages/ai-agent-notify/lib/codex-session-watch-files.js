@@ -48,16 +48,6 @@ function createSessionFileState(filePath) {
   return {
     filePath,
     sessionId: parseSessionIdFromRolloutPath(filePath),
-    turnId: "",
-    position: 0,
-    partial: "",
-    decoder: new StringDecoder("utf8"),
-  };
-}
-
-function createTailFileState(filePath) {
-  return {
-    filePath,
     position: 0,
     partial: "",
     decoder: new StringDecoder("utf8"),
@@ -65,10 +55,6 @@ function createTailFileState(filePath) {
 }
 
 function bootstrapExistingSessionFileState(state, stat) {
-  bootstrapTailFileState(state, stat);
-}
-
-function bootstrapTailFileState(state, stat) {
   state.position = stat.size;
   state.partial = "";
   state.decoder = new StringDecoder("utf8");
@@ -76,8 +62,6 @@ function bootstrapTailFileState(state, stat) {
 
 module.exports = {
   bootstrapExistingSessionFileState,
-  bootstrapTailFileState,
   createSessionFileState,
-  createTailFileState,
   listRolloutFiles,
 };

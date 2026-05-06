@@ -215,7 +215,6 @@ module.exports = function runNotificationAndDocsTests(h) {
     assert(readmeContent.includes("`SessionStart` 会确保 `codex-session-watch` 已运行"));
     assert(readmeContent.includes("`notify-mode`"));
     assert(readmeContent.includes("`rollout-watch`"));
-    assert(readmeContent.includes("`tui-watch`"));
     assert(readmeContent.includes("`session-start-hook`"));
     assert(readmeContent.includes("`claude`"));
     assert(readmeContent.includes("input prompts"));
@@ -266,9 +265,11 @@ module.exports = function runNotificationAndDocsTests(h) {
     assert(!readmeContent.includes("后台 worker"));
     assert(!readmeContent.includes("watcher-side completion fallback"));
     assert(!readmeContent.includes("InputRequest still stays on `codex-session-watch`"));
+    assert(!readmeContent.includes("各发一次通知"));
+    assert(!readmeContent.includes("watcher-side 去重状态"));
   });
 
-  test("architecture documents hooks ownership and dual-source InputRequest watcher", () => {
+  test("architecture documents hooks ownership and rollout InputRequest watcher", () => {
     const architectureContent = read("docs/architecture.md");
     assert(architectureContent.includes("hooks-mode"));
     assert(architectureContent.includes("SessionStart"));
@@ -276,7 +277,6 @@ module.exports = function runNotificationAndDocsTests(h) {
     assert(architectureContent.includes("Stop"));
     assert(architectureContent.includes("InputRequest"));
     assert(architectureContent.includes("rollout JSONL"));
-    assert(architectureContent.includes("codex-tui.log"));
     assert(architectureContent.includes("watcher 只处理 `InputRequest`"));
     assert(architectureContent.includes("`hooks.json` 的 `timeout`"));
     assert(architectureContent.includes("neutral fallback"));
@@ -285,6 +285,8 @@ module.exports = function runNotificationAndDocsTests(h) {
     assert(!architectureContent.includes("completion receipt"));
     assert(!architectureContent.includes("delayed fallback"));
     assert(!architectureContent.includes("projectDir / cwd 窗口级 fallback"));
+    assert(!architectureContent.includes("watcher-side 去重状态"));
+    assert(!architectureContent.includes("原始观察结果分别发送"));
   });
 
   test("docs define agentId and entryPointId as the canonical normalized contract", () => {
@@ -339,6 +341,8 @@ module.exports = function runNotificationAndDocsTests(h) {
     assert(approvalContent.includes("当前方案不再拆父子程序"));
     assert(!approvalContent.includes("detached worker"));
     assert(!approvalContent.includes("parallel"));
+    assert(!approvalContent.includes("watcher-side 去重状态"));
+    assert(!approvalContent.includes("各发一次通知"));
   });
 
   test("README stays user-focused while internal docs remain split by topic", () => {
@@ -374,7 +378,6 @@ module.exports = function runNotificationAndDocsTests(h) {
     assert(architectureContent.includes("codex-session-watch"));
     assert(architectureContent.includes("codex-session-start-hook.js"));
     assert(architectureContent.includes("rollout JSONL"));
-    assert(architectureContent.includes("codex-tui.log"));
     assert(approvalContent.includes("codex-session-watch"));
     assert(approvalContent.includes("codex-session-start-hook"));
     assert(approvalContent.includes("hooks.json"));

@@ -9,7 +9,6 @@ module.exports = function runCodexEventTests(h) {
         filePath:
           "C:\\Users\\ericali\\.codex\\sessions\\2026\\03\\20\\rollout-2026-03-20T12-14-50-session-1.jsonl",
         sessionId: "session-1",
-        turnId: "turn-1",
       },
       {
         type: "response_item",
@@ -35,7 +34,6 @@ module.exports = function runCodexEventTests(h) {
         filePath:
           "C:\\Users\\ericali\\.codex\\sessions\\2026\\03\\20\\rollout-2026-03-20T12-14-50-session-4.jsonl",
         sessionId: "session-4",
-        turnId: "turn-4",
       },
       {
         type: "event_msg",
@@ -58,7 +56,6 @@ module.exports = function runCodexEventTests(h) {
         filePath:
           "C:\\Users\\ericali\\.codex\\sessions\\2026\\04\\09\\rollout-2026-04-09T16-20-00-session-stop.jsonl",
         sessionId: "session-stop",
-        turnId: "turn-stop",
       },
       {
         type: "event_msg",
@@ -73,14 +70,6 @@ module.exports = function runCodexEventTests(h) {
     assert(event === null);
   });
 
-  test("tui watcher ignores require_escalated shell tool calls", () => {
-    const event = events.buildCodexTuiInputEvent(
-      '2026-03-20T04:15:29.835774Z  INFO session_loop{thread_id=session-3}:submission_dispatch{otel.name="op.dispatch.user_turn" submission.id="submission-3" codex.op="user_turn"}:turn{otel.name="session_task.turn" thread.id=session-3 turn.id=turn-3 model=gpt-5.4}: codex_core::stream_events_utils: ToolCall: shell_command {"command":"Get-Date","sandbox_permissions":"require_escalated","workdir":"C:\\\\Users\\\\ericali"} thread_id=session-3'
-    );
-
-    assert(event === null);
-  });
-
   test("session watcher recognizes request_user_input prompts from rollout JSONL", () => {
     const promptText = "What plan should I use for the next step?";
     const event = events.buildCodexSessionEvent(
@@ -88,7 +77,6 @@ module.exports = function runCodexEventTests(h) {
         filePath:
           "C:\\Users\\ericali\\.codex\\sessions\\2026\\04\\03\\rollout-2026-04-03T16-04-13-session-input.jsonl",
         sessionId: "session-input",
-        turnId: "turn-input",
       },
       {
         type: "response_item",
@@ -118,7 +106,8 @@ module.exports = function runCodexEventTests(h) {
     assert(event.title === "Input Needed");
     assert(event.message === promptText);
     assert(event.eventType === "request_user_input");
-    assert(event.dedupeKey === "session-input|input|turn-input|request_user_input:plan_target:1");
+    assert(!("turnId" in event));
+    assert(!("dedupeKey" in event));
   });
 
   test("session handler emits rollout InputRequest events immediately in live state", () => {
@@ -142,7 +131,6 @@ module.exports = function runCodexEventTests(h) {
           filePath:
             "C:\\Users\\ericali\\.codex\\sessions\\2026\\04\\03\\rollout-2026-04-03T16-04-13-session-live-input.jsonl",
           sessionId: "session-live-input",
-          turnId: "turn-live-input",
         },
         JSON.stringify({
           type: "response_item",
@@ -164,13 +152,13 @@ module.exports = function runCodexEventTests(h) {
         {
           runtime: { log: () => {} },
           terminal: { hwnd: null, shellPid: null, isWindowsTerminal: false },
-          emittedEventKeys: new Map(),
         }
       );
 
       assert(emitted.length === 1, "live handler path should emit one InputRequest");
       assert(emitted[0].eventName === "InputRequest");
       assert(emitted[0].entryPointId === "rollout-watch");
+      assert(!("turnId" in emitted[0]));
     } finally {
       notifyModule.emitCodexSessionWatchNotification = originalEmit;
       delete require.cache[handlersModuleKey];
@@ -178,29 +166,50 @@ module.exports = function runCodexEventTests(h) {
     }
   });
 
-  test("tui watcher ignores apply_patch tool calls because they are not input requests", () => {
-    const event = events.buildCodexTuiInputEvent(
-      '2026-03-20T09:24:55.432022Z  INFO session_loop{thread_id=session-5}:submission_dispatch{otel.name="op.dispatch.user_turn" submission.id="submission-5" codex.op="user_turn"}:turn{otel.name="session_task.turn" thread.id=session-5 turn.id=turn-5 model=gpt-5.4}: codex_core::stream_events_utils: ToolCall: apply_patch *** Begin Patch'
-    );
+  test("session watcher send path emits repeated InputRequest observations without dedupe state", () => {
+    const sessionWatchNotify = require(path.join(ROOT, "lib", "codex-session-watch-notify.js"));
+    const notifications = [];
+    const child = {
+      on: () => child,
+    };
+    const event = {
+      agentId: "codex",
+      entryPointId: "rollout-watch",
+      eventName: "InputRequest",
+      title: "Input Needed",
+      message: "What plan should I use for the next step?",
+      eventType: "request_user_input",
+      sessionId: "session-input",
+    };
 
-    assert(event === null);
+    const first = sessionWatchNotify.emitCodexSessionWatchNotification({
+      event,
+      runtime: { log: () => {} },
+      terminal: { hwnd: null, shellPid: null, isWindowsTerminal: false },
+      origin: "session",
+      resolveSessionWatchTerminalContextImpl: ({ fallbackTerminal }) => fallbackTerminal,
+      emitNotificationImpl: (payload) => {
+        notifications.push(payload);
+        return child;
+      },
+    });
+    const second = sessionWatchNotify.emitCodexSessionWatchNotification({
+      event,
+      runtime: { log: () => {} },
+      terminal: { hwnd: null, shellPid: null, isWindowsTerminal: false },
+      origin: "session-repeat",
+      resolveSessionWatchTerminalContextImpl: ({ fallbackTerminal }) => fallbackTerminal,
+      emitNotificationImpl: (payload) => {
+        notifications.push(payload);
+        return child;
+      },
+    });
+
+    assert(first === true);
+    assert(second === true);
+    assert(notifications.length === 2);
+    assert(notifications[0].entryPointId === "rollout-watch");
+    assert(notifications[1].entryPointId === "rollout-watch");
   });
 
-  test("tui watcher recognizes request_user_input prompts", () => {
-    const promptText = "What plan should I use for the next step?";
-    const event = events.buildCodexTuiInputEvent(
-      `2026-04-03T08:04:51.916797Z  INFO session_loop{thread_id=session-input}:submission_dispatch{otel.name="op.dispatch.user_input" submission.id="submission-input" codex.op="user_input"}:turn{otel.name="session_task.turn" thread.id=session-input turn.id=turn-input model=gpt-5.4}: codex_core::stream_events_utils: ToolCall: request_user_input {"questions":[{"header":"Plan Type","id":"plan_target","question":"${promptText}","options":[{"label":"Project Plan (Recommended)","description":"Inspect D:\\\\tmp\\\\ai-ui-case-runner-work before finalizing the plan."}]}]} thread_id=session-input`
-    );
-
-    assert(event);
-    assert(event.agentId === "codex");
-    assert(event.entryPointId === "tui-watch");
-    assert(!("source" in event));
-    assert(!("projectDir" in event));
-    assert(event.eventName === "InputRequest");
-    assert(event.title === "Input Needed");
-    assert(event.message === promptText);
-    assert(event.eventType === "request_user_input");
-    assert(event.dedupeKey === "session-input|input|turn-input|request_user_input:plan_target:1");
-  });
 };

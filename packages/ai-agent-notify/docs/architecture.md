@@ -29,14 +29,14 @@
 - Codex 官方 hooks 负责 `SessionStart`、`PermissionRequest` 和 `Stop`。
 - direct notify 不再拆父子程序；是否打断 Codex UI 等待，交给 `hooks.json` 的 `timeout` 控制。
 - watcher 只处理 `InputRequest`。
-- `codex-session-watch` 同时读取 rollout JSONL 和 `codex-tui.log`，用双来源补足 `InputRequest`。
+- `codex-session-watch` 读取 rollout JSONL，用本地 session 文件补足 `InputRequest`。
 - `SessionStart` hook 当场做本地 terminal 探测，并记录精确 `sessionId -> terminal context`。
 - watcher 只做精确 session 命中；拿不到记录时降级成 neutral Toast-only，不再做 `projectDir` 窗口级猜测。
 
 ## 归一化字段契约
 
 - `agentId` 只表示 agent 来源；当前规范值只保留 `claude`、`codex`、`unknown`。
-- `entryPointId` 只表示本包代码入口，例如 `notify-mode`、`hooks-mode`、`rollout-watch`、`tui-watch`。
+- `entryPointId` 只表示本包代码入口，例如 `notify-mode`、`hooks-mode`、`rollout-watch`。
 - 不要再把实现路径、历史兼容名、hooks/legacy 细分写进 `agentId`。
 - `source` 已从规范字段删除；后续判断和显示都只允许基于 `agentId + entryPointId`。
 
@@ -46,7 +46,7 @@
 | --- | --- | --- | --- |
 | Codex legacy `notify` | `agent-turn-complete` 对应的一次性 completion payload，以及它触发当场可直接探测到的终端上下文 | `PermissionRequest`、`InputRequest` | 正常 `Stop` 通知 |
 | Codex hooks `hooks.json` | 官方 `session_id` / `turn_id`、hook 事件名，以及 `SessionStart` matcher 可见字段 | rollout / TUI 历史中的后续 `InputRequest` | `SessionStart` bootstrap，以及 `PermissionRequest` / `Stop` 官方通知 |
-| `codex-session-watch` | rollout JSONL、`codex-tui.log`、`sessionId`、`turnId` | 官方 hooks 直接提供的 terminal 上下文 | `InputRequest` 双来源检测与发送 |
+| `codex-session-watch` | rollout JSONL、`sessionId`、`request_user_input` 参数 | 官方 hooks 直接提供的 terminal 上下文 | `InputRequest` 检测与发送 |
 
 ## 当前数据流
 
@@ -77,7 +77,6 @@ InputRequest:
   Later request_user_input
     └─ codex-session-watch
          ├─ 读 rollout JSONL
-         ├─ 读 codex-tui.log
          ├─ 归一化为 InputRequest
          ├─ 用 sessionId 做精确 terminal context 命中
          └─ 命中失败时退回 neutral fallback
@@ -92,7 +91,7 @@ Claude Code 的 hook 习惯是把 JSON 通过 stdin 传进来；Codex 旧版 `no
 
 ### 为什么 `InputRequest` 还保留 watcher
 
-当前官方 Codex hooks 已经有 `SessionStart`，但 `InputRequest` 仍需要依赖本地 rollout JSONL 和 `codex-tui.log`。因此 watcher 只保留这一条职责，不再承担 approval 或 completion 的补救逻辑。
+当前官方 Codex hooks 已经有 `SessionStart`，但 `InputRequest` 仍需要依赖本地 rollout JSONL。因此 watcher 只保留这一条职责，不再承担 approval 或 completion 的补救逻辑。
 
 ### 为什么 direct notify 现在保持单进程
 
