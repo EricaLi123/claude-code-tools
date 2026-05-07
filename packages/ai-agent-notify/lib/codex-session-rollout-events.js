@@ -1,6 +1,6 @@
 const { createNotificationSpec } = require("./notification-source-display");
 const {
-  getCodexInputRequestMessage,
+  getCodexQuestionNotificationMessage,
   parseJsonObjectMaybe,
 } = require("./codex-session-event-descriptors");
 
@@ -26,9 +26,9 @@ function buildCodexSessionEvent(state, record) {
       agentId: "codex",
       entryPointId: "rollout-watch",
       sessionId,
-      eventName: "InputRequest",
+      eventName: "QuestionNotification",
       rawEventType: payload.name,
-      message: getCodexInputRequestMessage(args),
+      message: getCodexQuestionNotificationMessage(args),
     }),
     eventType: payload.name,
   };

@@ -17,8 +17,8 @@ function parseJsonObjectMaybe(value) {
   return typeof value === "object" && !Array.isArray(value) ? value : null;
 }
 
-function getCodexInputRequestMessage(args) {
-  const questions = getCodexInputRequestQuestions(args);
+function getCodexQuestionNotificationMessage(args) {
+  const questions = getCodexQuestionNotificationQuestions(args);
   if (!questions.length) {
     return "Waiting for your input";
   }
@@ -44,7 +44,7 @@ function normalizeInlineText(value) {
   return typeof value === "string" ? value.replace(/\s+/g, " ").trim() : "";
 }
 
-function getCodexInputRequestQuestions(args) {
+function getCodexQuestionNotificationQuestions(args) {
   return Array.isArray(args && args.questions)
     ? args.questions.filter(
         (question) => question && typeof question === "object" && !Array.isArray(question)
@@ -53,7 +53,7 @@ function getCodexInputRequestQuestions(args) {
 }
 
 module.exports = {
-  getCodexInputRequestMessage,
+  getCodexQuestionNotificationMessage,
   parseJsonObjectMaybe,
   parseSessionIdFromRolloutPath,
 };

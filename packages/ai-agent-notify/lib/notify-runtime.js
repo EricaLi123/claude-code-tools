@@ -270,7 +270,7 @@ function writeWindowsTerminalColor(eventName, terminal, log) {
   const colorMap = {
     Stop: "rgb:33/cc/33",
     PermissionRequest: "rgb:ff/99/00",
-    InputRequest: "rgb:ff/99/00",
+    QuestionNotification: "rgb:ff/99/00",
   };
   const tabColor = colorMap[eventName];
 

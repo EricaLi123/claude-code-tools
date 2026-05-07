@@ -3,7 +3,7 @@
 Windows Toast notifications for Claude Code and Codex.
 
 Get notified when a Claude or Codex turn completes, when Claude needs
-approval, and when Codex needs approval or input.
+approval, and when Codex needs approval or sends a question notification.
 
 ## Install
 
@@ -37,9 +37,9 @@ Add to your `~/.claude/settings.json`:
 
 - `notify = [...]` remains the primary path for Codex turn-complete notifications.
 - Official Codex hooks handle `SessionStart`, `PermissionRequest`, and `Stop`.
-- `SessionStart` bootstraps watcher-backed `InputRequest` prompts by recording
+- `SessionStart` bootstraps watcher-backed `QuestionNotification` events by recording
   precise `sessionId -> terminal context`.
-- No MCP server config is required for `InputRequest`.
+- No MCP server config is required for `QuestionNotification`.
 
 `~/.codex/config.toml`:
 
@@ -83,8 +83,8 @@ Optional official Codex hooks:
 }
 ```
 
-- `codex-session-watch` only handles `InputRequest` input prompts.
-- watcher 只处理 `InputRequest`，并通过 rollout JSONL 检测输入提示。
+- `codex-session-watch` only handles `QuestionNotification`.
+- watcher 只处理 `QuestionNotification`，并通过 rollout JSONL 检测官方 question notifications。
 - `SessionStart` 会确保 `codex-session-watch` 已运行，并持久化精确
   `sessionId -> terminal context` 映射。
 - 如果你所在的 Codex 版本也会在 `/clear` 后触发 `SessionStart`，把
@@ -95,7 +95,7 @@ Optional official Codex hooks:
 - Codex command hook 是同步的；如果不想 UI 等完整个通知流程，直接在
   `hooks.json` 里给 hook 配 `timeout`，当前建议值是 `2` 秒。
 - `PermissionRequest` / `Stop` 继续走官方 hooks；completion 继续走 `notify`。
-- `InputRequest` 没有精确 session 记录时仍会发通知，但不会再猜别的窗口或 tab。
+- `QuestionNotification` 没有精确 session 记录时仍会发通知，但不会再猜别的窗口或 tab。
 - 归一化事件字段里，`agentId` 只表示 agent 来源，例如 `claude`、`codex`、
   `unknown`；代码入口统一记录在 `entryPointId`，例如 `notify-mode`、
   `hooks-mode`、`rollout-watch`、`session-start-hook`。

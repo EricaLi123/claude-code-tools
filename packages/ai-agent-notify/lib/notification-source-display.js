@@ -40,7 +40,7 @@ function inferNotificationTitle(eventName) {
       return "Done";
     case "PermissionRequest":
       return "Needs Approval";
-    case "InputRequest":
+    case "QuestionNotification":
       return "Input Needed";
     default:
       return "Notification";
@@ -53,7 +53,7 @@ function inferNotificationMessage(eventName) {
       return "Task finished";
     case "PermissionRequest":
       return "Waiting for your approval";
-    case "InputRequest":
+    case "QuestionNotification":
       return "Waiting for your input";
     default:
       return "Notification";

@@ -1110,7 +1110,7 @@ Expected: FAIL because README and `docs/architecture.md` do not mention notify-f
 - completion remains `notify`-first; `codex-session-watch` only provides delayed fallback when a matching completion receipt is missing.
 
 | Codex legacy `notify` | 一次性 completion payload、常见场景下的 `thread-id` / `turn-id` / `cwd`，以及触发当场可直接探测到的终端上下文 | approval 请求 | 正常 completion 通知 + completion receipt |
-| `codex-session-watch` | rollout `sessionId`、`task_complete`、approval event、`cwd`、TUI 里的早期 approval 线索 | 启动当场的终端句柄、原始 tab 句柄 | approval 检测 + delayed completion fallback |
+| `codex-session-watch` | rollout `sessionId`、`task_complete`、approval event、`cwd`、旧界面日志里的早期 approval 线索 | 启动当场的终端句柄、原始 tab 句柄 | approval 检测 + delayed completion fallback |
 
 Completion:
   Codex turn complete
@@ -1122,7 +1122,7 @@ Completion:
 
 ```js
 // bin/cli.js
-"  codex-session-watch Watch local Codex rollout files and TUI logs for approval events and completion fallback",
+"  codex-session-watch Watch local Codex rollout files and legacy logs for approval events and completion fallback",
 ```
 
 - [ ] **Step 4: Run the full regression suite and formatting check**

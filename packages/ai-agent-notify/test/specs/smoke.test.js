@@ -74,7 +74,7 @@ module.exports = function runSmokeTests(h) {
           "thread-id": "thread-smoke-1",
           "turn-id": "turn-smoke-1",
           cwd: TEST_PROJECT_DIR,
-          client: "codex-tui",
+          client: "codex-cli",
           "input-messages": ["Ping"],
           "last-assistant-message": "Pong",
         }),

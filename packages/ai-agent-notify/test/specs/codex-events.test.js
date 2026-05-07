@@ -102,7 +102,7 @@ module.exports = function runCodexEventTests(h) {
     assert(event.entryPointId === "rollout-watch");
     assert(!("source" in event));
     assert(!("projectDir" in event));
-    assert(event.eventName === "InputRequest");
+    assert(event.eventName === "QuestionNotification");
     assert(event.title === "Input Needed");
     assert(event.message === promptText);
     assert(event.eventType === "request_user_input");
@@ -110,7 +110,7 @@ module.exports = function runCodexEventTests(h) {
     assert(!("dedupeKey" in event));
   });
 
-  test("session handler emits rollout InputRequest events immediately in live state", () => {
+  test("session handler emits rollout QuestionNotification events immediately in live state", () => {
     const handlersPath = path.join(ROOT, "lib", "codex-session-watch-handlers.js");
     const notifyPath = path.join(ROOT, "lib", "codex-session-watch-notify.js");
     const handlersModuleKey = require.resolve(handlersPath);
@@ -155,8 +155,8 @@ module.exports = function runCodexEventTests(h) {
         }
       );
 
-      assert(emitted.length === 1, "live handler path should emit one InputRequest");
-      assert(emitted[0].eventName === "InputRequest");
+      assert(emitted.length === 1, "live handler path should emit one QuestionNotification");
+      assert(emitted[0].eventName === "QuestionNotification");
       assert(emitted[0].entryPointId === "rollout-watch");
       assert(!("turnId" in emitted[0]));
     } finally {
@@ -166,7 +166,7 @@ module.exports = function runCodexEventTests(h) {
     }
   });
 
-  test("session watcher send path emits repeated InputRequest observations without dedupe state", () => {
+  test("session watcher send path emits repeated QuestionNotification observations without dedupe state", () => {
     const sessionWatchNotify = require(path.join(ROOT, "lib", "codex-session-watch-notify.js"));
     const notifications = [];
     const child = {
@@ -175,7 +175,7 @@ module.exports = function runCodexEventTests(h) {
     const event = {
       agentId: "codex",
       entryPointId: "rollout-watch",
-      eventName: "InputRequest",
+      eventName: "QuestionNotification",
       title: "Input Needed",
       message: "What plan should I use for the next step?",
       eventType: "request_user_input",

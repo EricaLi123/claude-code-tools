@@ -90,7 +90,7 @@ function printHelp() {
       "",
       "Modes:",
       "  default             Read notification JSON from stdin or argv and show a notification, or handle Codex SessionStart bootstrap",
-      "  codex-session-watch Watch local Codex rollout files for input prompts",
+      "  codex-session-watch Watch local Codex rollout files for question notifications",
       "",
       "Flags:",
       "  --shell-pid <pid>     Override the detected shell pid",

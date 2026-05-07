@@ -34,16 +34,16 @@ module.exports = function runNotificationAndDocsTests(h) {
     assert(!("projectDir" in normalized));
   });
 
-  test("notification spec infers titles and messages for InputRequest", () => {
+  test("notification spec infers titles and messages for QuestionNotification", () => {
     const normalized = createNotificationSpec({
       agentId: "codex",
       entryPointId: "rollout-watch",
-      eventName: "InputRequest",
+      eventName: "QuestionNotification",
     });
 
     assert(normalized.agentId === "codex");
     assert(!("source" in normalized));
-    assert(normalized.eventName === "InputRequest");
+    assert(normalized.eventName === "QuestionNotification");
     assert(normalized.title === "Input Needed");
     assert(normalized.message === "Waiting for your input");
   });
@@ -51,7 +51,7 @@ module.exports = function runNotificationAndDocsTests(h) {
   test("notification spec does not infer agent hierarchy from a display string", () => {
     const normalized = createNotificationSpec({
       source: "watch-rollout",
-      eventName: "InputRequest",
+      eventName: "QuestionNotification",
     });
 
     assert(normalized.agentId === "unknown");
@@ -95,7 +95,7 @@ module.exports = function runNotificationAndDocsTests(h) {
           "thread-id": "thread-123",
           "turn-id": "turn-123",
           cwd: TEST_PROJECT_DIR,
-          client: "codex-tui",
+          client: "codex-cli",
           "input-messages": ["Ping"],
           "last-assistant-message": "Pong",
         }),
@@ -217,8 +217,8 @@ module.exports = function runNotificationAndDocsTests(h) {
     assert(readmeContent.includes("`rollout-watch`"));
     assert(readmeContent.includes("`session-start-hook`"));
     assert(readmeContent.includes("`claude`"));
-    assert(readmeContent.includes("input prompts"));
-    assert(readmeContent.includes("watcher 只处理 `InputRequest`"));
+    assert(readmeContent.includes("question notifications"));
+    assert(readmeContent.includes("watcher 只处理 `QuestionNotification`"));
     assert(!readmeContent.includes("approval reminders"));
     assert(!readmeContent.includes("completion fallback"));
     assert(!readmeContent.includes("parallel validation"));
@@ -245,39 +245,45 @@ module.exports = function runNotificationAndDocsTests(h) {
     const readmeContent = read("README.md");
     assert(readmeContent.includes("SessionStart"));
     assert(readmeContent.includes('"matcher": "startup|resume"'));
-    assert(readmeContent.includes("No MCP server config is required for `InputRequest`."));
+    assert(
+      readmeContent.includes(
+        "No MCP server config is required for `QuestionNotification`."
+      )
+    );
     assert(readmeContent.includes("startup|resume|clear"));
     assert(!readmeContent.includes("[mcp_servers.ai_agent_notify_sidecar]"));
     assert(!readmeContent.includes("codex-mcp-sidecar"));
   });
 
-  test("README documents hooks for SessionStart, PermissionRequest, and Stop while watcher stays on InputRequest", () => {
+  test("README documents hooks for SessionStart, PermissionRequest, and Stop while watcher stays on QuestionNotification", () => {
     const readmeContent = read("README.md");
     assert(readmeContent.includes("SessionStart"));
     assert(readmeContent.includes("PermissionRequest"));
     assert(readmeContent.includes("Stop"));
-    assert(readmeContent.includes("InputRequest"));
+    assert(readmeContent.includes("QuestionNotification"));
+    assert(readmeContent.includes("question notifications"));
     assert(readmeContent.includes("hooks.json"));
     assert(readmeContent.includes('"timeout": 2'));
-    assert(readmeContent.includes("watcher 只处理 `InputRequest`"));
+    assert(readmeContent.includes("watcher 只处理 `QuestionNotification`"));
     assert(readmeContent.includes("Codex 当前会跳过带 `async: true` 的 hooks"));
     assert(readmeContent.includes("`timeout`，当前建议值是 `2` 秒"));
     assert(!readmeContent.includes("后台 worker"));
     assert(!readmeContent.includes("watcher-side completion fallback"));
-    assert(!readmeContent.includes("InputRequest still stays on `codex-session-watch`"));
+    assert(!readmeContent.includes("QuestionNotification still stays on `codex-session-watch`"));
     assert(!readmeContent.includes("各发一次通知"));
     assert(!readmeContent.includes("watcher-side 去重状态"));
   });
 
-  test("architecture documents hooks ownership and rollout InputRequest watcher", () => {
+  test("architecture documents hooks ownership and rollout QuestionNotification watcher", () => {
     const architectureContent = read("docs/architecture.md");
     assert(architectureContent.includes("hooks-mode"));
     assert(architectureContent.includes("SessionStart"));
     assert(architectureContent.includes("PermissionRequest"));
     assert(architectureContent.includes("Stop"));
-    assert(architectureContent.includes("InputRequest"));
+    assert(architectureContent.includes("QuestionNotification"));
+    assert(architectureContent.includes("question notifications"));
     assert(architectureContent.includes("rollout JSONL"));
-    assert(architectureContent.includes("watcher 只处理 `InputRequest`"));
+    assert(architectureContent.includes("watcher 只处理 `QuestionNotification`"));
     assert(architectureContent.includes("`hooks.json` 的 `timeout`"));
     assert(architectureContent.includes("neutral fallback"));
     assert(!architectureContent.includes("detached worker"));
@@ -285,6 +291,7 @@ module.exports = function runNotificationAndDocsTests(h) {
     assert(!architectureContent.includes("completion receipt"));
     assert(!architectureContent.includes("delayed fallback"));
     assert(!architectureContent.includes("projectDir / cwd 窗口级 fallback"));
+    assert(!architectureContent.includes("rollout / TUI"));
     assert(!architectureContent.includes("watcher-side 去重状态"));
     assert(!architectureContent.includes("原始观察结果分别发送"));
   });
@@ -305,9 +312,9 @@ module.exports = function runNotificationAndDocsTests(h) {
     assert(windowsRuntimeContent.includes("`TOAST_NOTIFY_ENTRY_POINT`"));
   });
 
-  test("cli help documents codex-session-watch input prompt wording", () => {
+  test("cli help documents codex-session-watch question notification wording", () => {
     const cliContent = read("bin/cli.js");
-    assert(cliContent.includes("input prompts"));
+    assert(cliContent.includes("question notifications"));
     assert(!cliContent.includes("approval events and completion fallback"));
   });
 
@@ -321,13 +328,14 @@ module.exports = function runNotificationAndDocsTests(h) {
     assert(readmeContent.includes("## Codex"));
     assert(readmeContent.includes("Stop"));
     assert(readmeContent.includes("PermissionRequest"));
-    assert(readmeContent.includes("needs approval or input"));
+    assert(readmeContent.includes("question notification"));
   });
 
   test("active docs recommend the installed command path over npx", () => {
     const docsIndexContent = read("docs/README.md");
     const approvalContent = read("docs/codex-approval.md");
     assert(docsIndexContent.includes("ai-agent-notify.cmd"));
+    assert(docsIndexContent.includes("question notifications"));
     assert(!docsIndexContent.includes("`npx.cmd @erica-s/ai-agent-notify`"));
     assert(approvalContent.includes('notify = ["ai-agent-notify.cmd"]'));
     assert(approvalContent.includes("codex_hooks = true"));
@@ -336,7 +344,8 @@ module.exports = function runNotificationAndDocsTests(h) {
     assert(approvalContent.includes('"timeout": 2'));
     assert(approvalContent.includes("PermissionRequest"));
     assert(approvalContent.includes("Stop"));
-    assert(approvalContent.includes("InputRequest"));
+    assert(approvalContent.includes("QuestionNotification"));
+    assert(approvalContent.includes("question notifications"));
     assert(approvalContent.includes("Codex 当前会跳过带 `async: true` 的 hooks"));
     assert(approvalContent.includes("当前方案不再拆父子程序"));
     assert(!approvalContent.includes("detached worker"));
@@ -378,16 +387,18 @@ module.exports = function runNotificationAndDocsTests(h) {
     assert(architectureContent.includes("codex-session-watch"));
     assert(architectureContent.includes("codex-session-start-hook.js"));
     assert(architectureContent.includes("rollout JSONL"));
+    assert(architectureContent.includes("question notifications"));
     assert(approvalContent.includes("codex-session-watch"));
     assert(approvalContent.includes("codex-session-start-hook"));
     assert(approvalContent.includes("hooks.json"));
-    assert(approvalContent.includes("watcher 只处理 `InputRequest`"));
+    assert(approvalContent.includes("watcher 只处理 `QuestionNotification`"));
     assert(windowsRuntimeContent.includes("ai-agent-notify.cmd"));
     assert(windowsRuntimeContent.includes("FRAME_BACKGROUND"));
     assert(historyIndexContent.includes("路线边界"));
     assert(historyIndexContent.includes("平台 / 信号 / 实现演进"));
     assert(historyContent.includes("os error 206"));
-    assert(historyContent.includes("TUI fallback"));
+    assert(historyContent.includes("旧界面日志 fallback"));
+    assert(historyContent.includes('originator = "codex-tui"'));
   });
 
   test("README and docs only use valid local markdown links", () => {

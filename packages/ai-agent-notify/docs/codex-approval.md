@@ -1,4 +1,4 @@
-# Codex Hooks、InputRequest 与定位
+# Codex Hooks、QuestionNotification 与定位
 
 这一页是给开发者和 AI 的 Codex 通知主手册。它只记录当前仍生效的设计、约束和改动判断。带日期的实验和机器相关复盘统一放到 [`history/`](./history/)。
 
@@ -12,7 +12,8 @@
 
 - Codex 官方 hooks 负责 `SessionStart`、`PermissionRequest` 和 `Stop`。
 - `notify = ["ai-agent-notify.cmd"]` 继续作为 legacy `Stop` 主路径。
-- watcher 只处理 `InputRequest`。
+- watcher 只处理 `QuestionNotification`。
+- `QuestionNotification` 是包内事件名，对应 Codex app UI 里的 question notifications。
 - `SessionStart` hook 只负责记录精确 `sessionId -> terminal context` 和确保 watcher 在跑。
 - 定位优先级是：精确 `sessionId` 命中 > neutral Toast-only。
 - 拿不到足够证据时宁可降级，也不盲猜 tab。
@@ -63,7 +64,7 @@ notify = ["ai-agent-notify.cmd"]
 - Codex 当前 command hook 也是同步执行的，UI 会等待 hook 进程退出。
 - 当前方案不再拆父子程序；如果不想 UI 等完整个通知流程，就直接在 `hooks.json` 给 hook 配 `timeout`，当前建议值是 `2` 秒。
 - 只写 `hooks.json` 不够，`config.toml` 里还要显式打开 `codex_hooks = true`。
-- `InputRequest` 目前不走官方 hooks；watcher 只处理 `InputRequest`。
+- `QuestionNotification` 目前不走官方 hooks；watcher 只处理 `QuestionNotification`。
 - `SessionStart` 会在 session 启动期确保 `codex-session-watch` 已运行。
 - Codex 官方 hooks 文档的 matcher 章节当前把 `SessionStart.source` 运行值列为 `startup`、`resume`、`clear`，但 `SessionStart` 字段表仍只写 `startup` / `resume`。因此默认示例先保守覆盖 `startup|resume`；如果你实测所在版本也会在 `/clear` 触发 `SessionStart`，再把 matcher 扩成 `startup|resume|clear`。
 
@@ -72,8 +73,8 @@ notify = ["ai-agent-notify.cmd"]
 | 你要改的东西 | 应先看什么 | 当前 owner |
 | --- | --- | --- |
 | `PermissionRequest` / `Stop` 的官方输入 | hooks payload、归一化字段 | `notify-mode` + `hooks-mode` |
-| `SessionStart` 怎么 bootstrap `InputRequest` 定位 | hooks payload、本地 terminal 探测、session store | `session-start-hook` |
-| `InputRequest` 怎么被发现 | rollout JSONL | `codex-session-watch` |
+| `SessionStart` 怎么 bootstrap `QuestionNotification` 定位 | hooks payload、本地 terminal 探测、session store | `session-start-hook` |
+| `QuestionNotification` 怎么被发现 | rollout JSONL | `codex-session-watch` |
 | `sessionId -> terminal` 怎么解释 | 只读精确 session store | `codex-session-watch` |
 | 通知如何落地到窗口 / tab | Windows 运行时 | [`windows-runtime.md`](./windows-runtime.md) |
 
@@ -90,7 +91,7 @@ Stop / PermissionRequest
            ├─ 采 terminal context
            └─ 直接做 notify.ps1 dispatch
 
-InputRequest
+QuestionNotification
   → Codex session start
       └─ hooks SessionStart
            ├─ 记录精确 `sessionId -> terminal context`
@@ -99,7 +100,7 @@ InputRequest
   → Later request_user_input
       └─ codex-session-watch
            ├─ 读 rollout JSONL
-           ├─ 归一化为 InputRequest
+           ├─ 归一化为 QuestionNotification
            ├─ 先尝试精确 sessionId 定位
            └─ 失败时退回 neutral fallback
            └─ 发 notify / flash / open / tab hint
@@ -111,7 +112,7 @@ InputRequest
 | --- | --- |
 | watcher 生命周期、单实例锁、build replace | [`../lib/codex-session-watch-runner.js`](../lib/codex-session-watch-runner.js) |
 | rollout 文件扫描 | [`../lib/codex-session-watch-files.js`](../lib/codex-session-watch-files.js) |
-| 增量消费 rollout / TUI | [`../lib/codex-session-watch-streams.js`](../lib/codex-session-watch-streams.js)、[`../lib/codex-session-watch-handlers.js`](../lib/codex-session-watch-handlers.js) |
+| 增量消费 rollout | [`../lib/codex-session-watch-streams.js`](../lib/codex-session-watch-streams.js)、[`../lib/codex-session-watch-handlers.js`](../lib/codex-session-watch-handlers.js) |
 | watcher 定位与通知发送 | [`../lib/codex-session-watch-notify.js`](../lib/codex-session-watch-notify.js) |
 | `SessionStart` hook bootstrap | [`../lib/codex-session-start-hook.js`](../lib/codex-session-start-hook.js) |
 | session terminal context 持久化 | [`../lib/codex-terminal-context-store.js`](../lib/codex-terminal-context-store.js) |
@@ -119,9 +120,9 @@ InputRequest
 
 ## 为什么现在用 `SessionStart`
 
-### 为什么不把 `InputRequest` 直接交给 hooks
+### 为什么不把 `QuestionNotification` 直接交给 hooks
 
-当前官方 hooks 已经有 `SessionStart`，但 `InputRequest` 还没有稳定的官方入口，所以仍要依赖 rollout JSONL。这也是 watcher 现在唯一保留的职责。
+当前官方 hooks 已经有 `SessionStart`，但 `QuestionNotification` 还没有稳定的官方入口，所以仍要依赖 rollout JSONL。这也是 watcher 现在唯一保留的职责。
 
 ### 为什么 hooks-mode 现在走单进程
 
@@ -134,5 +135,5 @@ InputRequest
 ## 改完后至少检查什么
 
 - 代码：确认 `PermissionRequest` / `Stop` 仍由 hooks / notify 直达，`codex-session-watch` 没有重新接回 approval 或 completion 逻辑。
-- 文档：如果改了 hooks 边界、`InputRequest` watcher 或 `SessionStart` 语义，更新本页和 [`architecture.md`](./architecture.md)。
+- 文档：如果改了 hooks 边界、`QuestionNotification` watcher 或 `SessionStart` 语义，更新本页和 [`architecture.md`](./architecture.md)。
 - 测试：至少看 [`../test/specs/session-start.test.js`](../test/specs/session-start.test.js)、[`../test/specs/codex-events.test.js`](../test/specs/codex-events.test.js)、[`../test/specs/notification-and-docs.test.js`](../test/specs/notification-and-docs.test.js)、[`../test/specs/structure-and-runtime.test.js`](../test/specs/structure-and-runtime.test.js)。

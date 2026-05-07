@@ -11,7 +11,7 @@ This design is intentionally narrower than a full completion pipeline rewrite:
 
 - completion remains `notify`-first
 - watcher only provides delayed fallback
-- current watcher responsibilities for `PermissionRequest` and `InputRequest`
+- current watcher responsibilities for `PermissionRequest` and `QuestionNotification`
   stay unchanged
 
 ## Current Context
@@ -107,9 +107,9 @@ approval and input flows.
 Important scope limit for the first version:
 
 - use rollout JSONL only
-- do not add TUI completion parsing yet
+- do not add legacy log completion parsing yet
 
-This keeps the first version narrow and avoids inventing a TUI completion rule
+This keeps the first version narrow and avoids inventing a legacy log completion rule
 before there is evidence that the rollout-based signal is insufficient.
 
 The watcher will not emit completion immediately on sight. Instead it will
@@ -164,7 +164,7 @@ Reasons:
 - their grace windows exist for different reasons
 - mixing them would make logs and tests harder to understand
 
-The current watcher handling for `PermissionRequest` and `InputRequest` should
+The current watcher handling for `PermissionRequest` and `QuestionNotification` should
 remain intact.
 
 ## Data Flow
@@ -197,7 +197,7 @@ remain intact.
 - If watcher can prepare fallback context but receipt state changes before final
   emit, the receipt wins and watcher must drop the fallback.
 - If rollout completion parsing proves too weak in real usage, add a later
-  follow-up design for TUI completion fallback rather than broadening this
+  follow-up design for legacy log completion fallback rather than broadening this
   version ad hoc.
 
 ## Testing Strategy
@@ -213,14 +213,14 @@ Add tests for:
 Regression scope should cover both architecture and behavior:
 
 - watcher still handles `PermissionRequest`
-- watcher still handles `InputRequest`
+- watcher still handles `QuestionNotification`
 - completion remains `notify`-first
 - watcher completion uses rollout-only signals in v1
 
 ## Out of Scope
 
 - replacing `notify` as the primary completion path
-- TUI-based completion fallback in the first version
+- legacy log-based completion fallback in the first version
 - changing approval signal priority or sidecar semantics
 - solving every historical Windows session-origin edge case in one pass
 

@@ -36,7 +36,7 @@ if (-not $baseTitle) {
         'PermissionRequest' {
             $baseTitle = 'Needs Approval'
         }
-        'InputRequest' {
+        'QuestionNotification' {
             $baseTitle = 'Input Needed'
         }
         default {
@@ -53,7 +53,7 @@ if (-not $message) {
         'PermissionRequest' {
             $message = 'Waiting for your approval'
         }
-        'InputRequest' {
+        'QuestionNotification' {
             $message = 'Waiting for your input'
         }
         default {
@@ -139,7 +139,7 @@ function Get-NotifyIcon($iconKey, $exePath) {
 $iconKey = switch ($eventName) {
     'Stop'              { 'stop' }
     'PermissionRequest' { 'permission' }
-    'InputRequest'      { 'permission' }
+    'QuestionNotification' { 'permission' }
     default             { 'info' }
 }
 $iconPath = Get-NotifyIcon $iconKey $terminalExePath

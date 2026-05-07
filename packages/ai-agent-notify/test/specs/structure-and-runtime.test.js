@@ -72,7 +72,6 @@ module.exports = function runStructureAndRuntimeTests(h) {
     "lib/codex-mcp-server.js",
     "lib/codex-mcp-sidecar-mode.js",
     "lib/codex-session-events.js",
-    "lib/codex-session-tui-events.js",
     "lib/codex-session-watch.js",
     "lib/codex-hook-notify-mode.js",
     "lib/notification-sources.js",
@@ -89,6 +88,13 @@ module.exports = function runStructureAndRuntimeTests(h) {
     test(`${relPath} removed`, () => {
       assert(!fs.existsSync(path.join(ROOT, relPath)), `${relPath} should be removed`);
     });
+  });
+
+  test("legacy session watcher event shim removed", () => {
+    assert(
+      !fs.existsSync(path.join(ROOT, "lib/codex-session-tui-events.js")),
+      "legacy session watcher event shim should be removed"
+    );
   });
 
   section("package.json");
@@ -153,7 +159,7 @@ module.exports = function runStructureAndRuntimeTests(h) {
     assert(agentsContent.includes("文档分工和阅读顺序看 `docs/README.md`"));
     assert(agentsContent.includes("`notify` 负责 completion"));
     assert(agentsContent.includes("`SessionStart`"));
-    assert(agentsContent.includes("`codex-session-watch` 只负责 `InputRequest`"));
+    assert(agentsContent.includes("`codex-session-watch` 只负责 `QuestionNotification`"));
     assert(agentsContent.includes("direct notify 保持单进程"));
     assert(agentsContent.includes("`hooks.json` 的 `timeout`"));
     assert(agentsContent.includes("`agentId` 只允许 `claude`、`codex`、`unknown`"));
@@ -207,10 +213,9 @@ module.exports = function runStructureAndRuntimeTests(h) {
     assert(!sessionWatchHandlersContent.includes('record.type === "turn_context"'));
     assert(!sessionWatchHandlersContent.includes("state.turnId"));
     assert(sessionWatchStreamsContent.includes('require("./codex-session-watch-handlers")'));
-    assert(!sessionWatchStreamsContent.includes("syncCodexTuiLogState"));
+    assert(!sessionWatchStreamsContent.includes("syncCodex"));
     assert(!sessionWatchStreamsContent.includes("createTailFileState"));
     assert(!sessionWatchStreamsContent.includes("bootstrapTailFileState"));
-    assert(!sessionWatchStreamsContent.includes("tui log"));
     assert(!sessionWatchStreamsContent.includes("pendingApproval"));
     assert(!sessionWatchStreamsContent.includes("pendingCompletion"));
     assert(!sessionWatchStreamsContent.includes("emittedEventKeys"));
@@ -234,7 +239,7 @@ module.exports = function runStructureAndRuntimeTests(h) {
     assert(!sessionRolloutEventsContent.includes("parseSessionIdFromRolloutPath"));
     assert(sessionRolloutEventsContent.includes('const sessionId = state.sessionId || "unknown";'));
     assert(!sessionEventDescriptorsContent.includes("function buildSessionEventDedupeKey("));
-    assert(!sessionEventDescriptorsContent.includes("function getCodexInputRequestDescriptor("));
+    assert(!sessionEventDescriptorsContent.includes("function getCodexQuestionNotificationDescriptor("));
     assert(!sessionEventDescriptorsContent.includes("function getCodexExecApprovalDescriptor("));
     assert(sessionWatchNotifyContent.includes("function emitCodexSessionWatchNotification("));
     assert(sessionWatchNotifyContent.includes('require("./codex-terminal-context-store")'));

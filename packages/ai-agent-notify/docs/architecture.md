@@ -11,14 +11,14 @@
 ## 这页不负责什么
 
 - 不负责给用户写安装步骤和 public guidance，那是 [`../README.md`](../README.md)。
-- 不负责展开 Codex hooks / `InputRequest` 的细粒度操作说明，那是 [`codex-approval.md`](./codex-approval.md)。
+- 不负责展开 Codex hooks / `QuestionNotification` 的细粒度操作说明，那是 [`codex-approval.md`](./codex-approval.md)。
 - 不负责展开 Windows 平台实现细节，那是 [`windows-runtime.md`](./windows-runtime.md)。
 - 不负责保存带日期的实验和机器差异，那是 [`history/`](./history/)。
 
 ## 根本需求
 
 - 用户只需要配置一次，之后继续直接使用官方 Claude Code / Codex。
-- Claude 的 `Stop` / `PermissionRequest` 和 Codex 的 `Stop` / `PermissionRequest` / `InputRequest` 都要能被提醒。
+- Claude 的 `Stop` / `PermissionRequest` 和 Codex 的 `Stop` / `PermissionRequest` / `QuestionNotification` 都要能被提醒。
 - Windows 下在能做到的前提下，提醒不仅要“弹出来”，还要尽量把用户带回正确窗口 / tab。
 - public guidance 要尽量简单，不能把历史排障和机器特例直接堆进用户 README。
 
@@ -28,8 +28,9 @@
 - Codex `notify = [...]` 继续作为 `Stop` 的主路径。
 - Codex 官方 hooks 负责 `SessionStart`、`PermissionRequest` 和 `Stop`。
 - direct notify 不再拆父子程序；是否打断 Codex UI 等待，交给 `hooks.json` 的 `timeout` 控制。
-- watcher 只处理 `InputRequest`。
-- `codex-session-watch` 读取 rollout JSONL，用本地 session 文件补足 `InputRequest`。
+- watcher 只处理 `QuestionNotification`。
+- `QuestionNotification` 是包内事件名，对应 Codex app UI 里的 question notifications。
+- `codex-session-watch` 读取 rollout JSONL，用本地 session 文件补足 `QuestionNotification`。
 - `SessionStart` hook 当场做本地 terminal 探测，并记录精确 `sessionId -> terminal context`。
 - watcher 只做精确 session 命中；拿不到记录时降级成 neutral Toast-only，不再做 `projectDir` 窗口级猜测。
 
@@ -44,9 +45,9 @@
 
 | 通道 | 能稳定拿到 | 拿不到 / 不应假设能拿到 | 适合承担的职责 |
 | --- | --- | --- | --- |
-| Codex legacy `notify` | `agent-turn-complete` 对应的一次性 completion payload，以及它触发当场可直接探测到的终端上下文 | `PermissionRequest`、`InputRequest` | 正常 `Stop` 通知 |
-| Codex hooks `hooks.json` | 官方 `session_id` / `turn_id`、hook 事件名，以及 `SessionStart` matcher 可见字段 | rollout / TUI 历史中的后续 `InputRequest` | `SessionStart` bootstrap，以及 `PermissionRequest` / `Stop` 官方通知 |
-| `codex-session-watch` | rollout JSONL、`sessionId`、`request_user_input` 参数 | 官方 hooks 直接提供的 terminal 上下文 | `InputRequest` 检测与发送 |
+| Codex legacy `notify` | `agent-turn-complete` 对应的一次性 completion payload，以及它触发当场可直接探测到的终端上下文 | `PermissionRequest`、`QuestionNotification` | 正常 `Stop` 通知 |
+| Codex hooks `hooks.json` | 官方 `session_id` / `turn_id`、hook 事件名，以及 `SessionStart` matcher 可见字段 | rollout 中后续出现的 `QuestionNotification` 内容 | `SessionStart` bootstrap，以及 `PermissionRequest` / `Stop` 官方通知 |
+| `codex-session-watch` | rollout JSONL、`sessionId`、`request_user_input` 参数 | 官方 hooks 直接提供的 terminal 上下文 | `QuestionNotification` 检测与发送 |
 
 ## 当前数据流
 
@@ -67,7 +68,7 @@ PermissionRequest:
          ├─ 采 terminal context
          └─ 直接做 notify.ps1 dispatch
 
-InputRequest:
+QuestionNotification:
   Codex session start
     └─ Codex hooks SessionStart
          └─ ai-agent-notify
@@ -77,7 +78,7 @@ InputRequest:
   Later request_user_input
     └─ codex-session-watch
          ├─ 读 rollout JSONL
-         ├─ 归一化为 InputRequest
+         ├─ 归一化为 QuestionNotification
          ├─ 用 sessionId 做精确 terminal context 命中
          └─ 命中失败时退回 neutral fallback
          └─ 发 notify / flash / open / tab hint
@@ -89,17 +90,17 @@ InputRequest:
 
 Claude Code 的 hook 习惯是把 JSON 通过 stdin 传进来；Codex 旧版 `notify` 把 JSON payload 作为 argv 传给命令；Codex 官方 hooks 也会直接起本地命令。当前项目把这些 transport 统一收口到 `normalizeIncomingNotification()`，这样对外只需要一个命令名 `ai-agent-notify`，不必为 Claude / Codex 维护多套入口。
 
-### 为什么 `InputRequest` 还保留 watcher
+### 为什么 `QuestionNotification` 还保留 watcher
 
-当前官方 Codex hooks 已经有 `SessionStart`，但 `InputRequest` 仍需要依赖本地 rollout JSONL。因此 watcher 只保留这一条职责，不再承担 approval 或 completion 的补救逻辑。
+当前官方 Codex hooks 已经有 `SessionStart`，但 `QuestionNotification` 仍需要依赖本地 rollout JSONL。因此 watcher 只保留这一条职责，不再承担 approval 或 completion 的补救逻辑。
 
 ### 为什么 direct notify 现在保持单进程
 
-因为用户现在选择把“UI 最多等多久”完全交给 Codex `hooks.json` 的 `timeout`。这样 CLI 内部可以保持单进程，不再维护额外进程、payload 文件和额外入口；terminal 探测、即时 WT tab 提示和 `notify.ps1` dispatch 都留在同一个进程里完成，`InputRequest` watcher 的拉起则由 `SessionStart` 单独负责。
+因为用户现在选择把“UI 最多等多久”完全交给 Codex `hooks.json` 的 `timeout`。这样 CLI 内部可以保持单进程，不再维护额外进程、payload 文件和额外入口；terminal 探测、即时 WT tab 提示和 `notify.ps1` dispatch 都留在同一个进程里完成，`QuestionNotification` watcher 的拉起则由 `SessionStart` 单独负责。
 
 ### 为什么 `SessionStart` 现在承担 bootstrap
 
-`SessionStart` hook 同时拿得到官方 `session_id` 和本地当前终端附着关系，所以不再需要先写一条“未对账 observation”，再由 watcher 事后 reconcile。这样 `InputRequest` 定位链可以直接收敛成“精确 session 命中，否则中性降级”。
+`SessionStart` hook 同时拿得到官方 `session_id` 和本地当前终端附着关系，所以不再需要先写一条“未对账 observation”，再由 watcher 事后 reconcile。这样 `QuestionNotification` 定位链可以直接收敛成“精确 session 命中，否则中性降级”。
 
 ## 核心代码入口
 
@@ -117,6 +118,6 @@ Claude Code 的 hook 习惯是把 JSON 通过 stdin 传进来；Codex 旧版 `no
 
 ## 下一步阅读
 
-- [Codex hooks、InputRequest watcher 与 `SessionStart`](./codex-approval.md)
+- [Codex hooks、QuestionNotification watcher 与 `SessionStart`](./codex-approval.md)
 - [Windows 运行时与通知实现](./windows-runtime.md)
 - [历史与实测归档](./history/README.md)

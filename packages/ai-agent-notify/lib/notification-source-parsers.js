@@ -12,7 +12,7 @@ const CODEX_EVENT_NAME_BY_TYPE = {
   "exec-approval-request": "PermissionRequest",
   "request-permissions": "PermissionRequest",
   "apply-patch-approval-request": "PermissionRequest",
-  "request-user-input": "InputRequest",
+  "request-user-input": "QuestionNotification",
 };
 
 function normalizeIncomingNotification({ argv = [], stdinData = "", env = {} } = {}) {
